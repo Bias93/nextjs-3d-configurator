@@ -1,7 +1,23 @@
 {
-  "name": "3d-product-configurator",
+  "name": "3d-configurator",
   "version": "1.0.0",
-  "private": true,
+  "description": "Interactive 3D product configurator with texture and color customization",
+  "author": "Davide Marino (@Bias93)",
+  "license": "MIT",
+  "keywords": [
+    "3d",
+    "configurator",
+    "model-viewer",
+    "react",
+    "nextjs",
+    "webgl",
+    "ar",
+    "product-customization"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Bias93/3d-configurator"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -24,5 +40,8 @@
     "@types/react-dom": "^19.0.0",
     "tailwindcss": "^4.0.0",
     "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
