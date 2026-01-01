@@ -6,20 +6,24 @@ interface ViewerControlsProps {
   onScreenshot?: () => void;
   onReset?: () => void;
   onToggleAutoRotate?: () => void;
+  onActivateAR?: () => void;
   isAutoRotating?: boolean;
   hasModel?: boolean;
+  canAR?: boolean;
 }
 
 /**
  * Floating control buttons for the 3D viewer.
- * Provides screenshot, reset view, and auto-rotate toggle functionality.
+ * Provides screenshot, reset view, auto-rotate toggle, and AR functionality.
  */
 export function ViewerControls({
   onScreenshot,
   onReset,
   onToggleAutoRotate,
+  onActivateAR,
   isAutoRotating = true,
   hasModel = false,
+  canAR = false,
 }: ViewerControlsProps) {
   const buttonBase = clsx(
     'flex items-center justify-center w-10 h-10 rounded-lg transition-all duration-200',
@@ -99,6 +103,31 @@ export function ViewerControls({
           />
         </svg>
       </button>
+
+      {/* AR Button - only visible when AR is available */}
+      {canAR && (
+        <button
+          onClick={onActivateAR}
+          disabled={!hasModel}
+          className={clsx(
+            buttonBase,
+            'bg-accent-500/90 backdrop-blur-sm border border-accent-400',
+            'hover:bg-accent-400 hover:border-accent-300',
+            'active:scale-95'
+          )}
+          title="View in AR"
+          aria-label="View in AR"
+        >
+          <svg className="w-5 h-5 text-surface-950" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path 
+              strokeLinecap="round" 
+              strokeLinejoin="round" 
+              strokeWidth={1.5} 
+              d="M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9" 
+            />
+          </svg>
+        </button>
+      )}
     </div>
   );
 }

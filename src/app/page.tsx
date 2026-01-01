@@ -31,6 +31,7 @@ export default function ConfiguratorPage() {
   const [textureApplied, setTextureApplied] = useState(false);
   
   const viewerRef = useRef<HTMLDivElement>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const handleModelSelect = useCallback((url: string, fileName: string) => {
     if (modelUrl) URL.revokeObjectURL(modelUrl);
@@ -83,11 +84,42 @@ export default function ConfiguratorPage() {
     });
   }, []);
 
+  const handleActivateAR = useCallback(() => {
+    const viewer = viewerRef.current?.querySelector('model-viewer') as any;
+    if (viewer?.activateAR) {
+      viewer.activateAR();
+    }
+  }, []);
+
+  // Check if AR is available (mobile devices with AR support)
+  const canAR = typeof window !== 'undefined' && 
+    ('xr' in navigator || /Android|iPhone|iPad/i.test(navigator.userAgent));
+
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row">
-      <aside className="w-full lg:w-80 xl:w-96 shrink-0 bg-surface-900 border-b lg:border-b-0 lg:border-r border-surface-800">
+    <div className="min-h-screen flex flex-col-reverse lg:flex-row">
+      {/* Mobile toggle button - fixed at bottom */}
+      <button
+        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+        className="lg:hidden fixed bottom-4 right-4 z-50 w-14 h-14 rounded-full bg-accent-500 text-surface-950 shadow-lg flex items-center justify-center active:scale-95 transition-transform"
+        aria-label={isSidebarOpen ? 'Close controls' : 'Open controls'}
+      >
+        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          {isSidebarOpen ? (
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+          ) : (
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+          )}
+        </svg>
+      </button>
+
+      {/* Sidebar / Controls panel */}
+      <aside className={`
+        w-full lg:w-80 xl:w-96 shrink-0 bg-surface-900 border-t lg:border-t-0 lg:border-r border-surface-800
+        transition-all duration-300 overflow-hidden
+        ${isSidebarOpen ? 'max-h-[80vh]' : 'max-h-0 lg:max-h-none'}
+      `}>
         <div className="p-6 lg:p-8 h-full flex flex-col">
-          <header className="mb-8">
+          <header className="mb-6 lg:mb-8">
             <div className="flex items-center gap-3 mb-2">
               <div className="w-10 h-10 rounded-lg bg-linear-to-br from-accent-400 to-accent-600 flex items-center justify-center">
                 <svg className="w-5 h-5 text-surface-950" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -105,7 +137,7 @@ export default function ConfiguratorPage() {
             </div>
           </header>
 
-          <div className="space-y-6 flex-1">
+          <div className="space-y-5 flex-1 overflow-y-auto">
             <ModelUploader 
               onModelSelect={handleModelSelect}
               currentModel={modelUrl}
@@ -137,7 +169,8 @@ export default function ConfiguratorPage() {
             )}
           </div>
 
-          <div className="mt-8 pt-6 border-t border-surface-800">
+          {/* Controls help - hidden on mobile for space */}
+          <div className="hidden lg:block mt-6 pt-6 border-t border-surface-800">
             <h3 className="text-xs font-medium text-surface-500 uppercase tracking-wider mb-3">
               Controls
             </h3>
@@ -165,7 +198,8 @@ export default function ConfiguratorPage() {
         </div>
       </aside>
 
-      <main className="flex-1 relative bg-surface-950 min-h-[60vh] lg:min-h-screen">
+      {/* Main viewer - now appears first on mobile due to flex-col-reverse */}
+      <main className="flex-1 relative bg-surface-950 h-[50vh] lg:h-auto lg:min-h-screen">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,var(--tw-gradient-stops))] from-surface-900 via-surface-950 to-surface-950" />
         
         <div 
@@ -190,8 +224,10 @@ export default function ConfiguratorPage() {
                 onScreenshot={handleScreenshot}
                 onReset={handleReset}
                 onToggleAutoRotate={handleToggleAutoRotate}
+                onActivateAR={handleActivateAR}
                 isAutoRotating={isAutoRotating}
                 hasModel={true}
+                canAR={canAR}
               />
             </>
           ) : (
