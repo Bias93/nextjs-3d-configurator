@@ -74,12 +74,9 @@ export function ProductViewer({
     if (!viewer?.model) return;
 
     try {
-      // Crea una nuova texture usando l'API createTexture di model-viewer
       const newTexture = await viewer.createTexture(textureUrl);
-      
       const materials = viewer.model.materials;
       
-      // Cerca materiale specifico "telaio" o applica a tutti
       const targetMaterial = materials.find((m: Material) => 
         m.name.toLowerCase().includes('telaio') || 
         m.name.toLowerCase().includes('custom')
@@ -88,8 +85,21 @@ export function ProductViewer({
       const materialsToUpdate = targetMaterial ? [targetMaterial] : materials;
 
       for (const material of materialsToUpdate) {
-        // Imposta la nuova texture come baseColorTexture
-        material.pbrMetallicRoughness.setBaseColorTexture(newTexture);
+        // Log per debug
+        console.log('Materiale:', material.name, material);
+
+        if (material.pbrMetallicRoughness.setBaseColorTexture) {
+             material.pbrMetallicRoughness.setBaseColorTexture(newTexture);
+             // Reset colore a bianco per evitare che il colore precedente modifichi la texture
+             if (material.pbrMetallicRoughness.setBaseColorFactor) {
+               material.pbrMetallicRoughness.setBaseColorFactor([1, 1, 1, 1]);
+             }
+        } else if (material.pbrMetallicRoughness.baseColorTexture) {
+             // Fallback per alcune versioni o strutture diverse
+             (material.pbrMetallicRoughness.baseColorTexture as any).setTexture(newTexture);
+        } else {
+             console.warn('Impossibile settare texture su materiale:', material.name);
+        }
       }
       
       onTextureApplied?.();

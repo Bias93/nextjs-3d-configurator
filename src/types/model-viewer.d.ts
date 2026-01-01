@@ -1,16 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React from 'react';
+import * as React from 'react';
 
 declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      'model-viewer': React.DetailedHTMLProps<
-        React.HTMLAttributes<HTMLElement> & ModelViewerAttributes,
-        HTMLElement
-      >;
-    }
-  }
-
   interface ModelViewerAttributes {
     src?: string;
     poster?: string;
@@ -40,6 +31,7 @@ declare global {
     'interpolation-decay'?: string;
     style?: React.CSSProperties;
     class?: string;
+    className?: string;
     ref?: React.Ref<any>;
   }
 
@@ -75,5 +67,16 @@ declare global {
     toDataURL: (type?: string, quality?: number) => string;
     dismissPoster: () => void;
     createTexture: (uri: string, type?: string) => Promise<Texture>;
+  }
+}
+
+declare module 'react' {
+  namespace JSX {
+    interface IntrinsicElements {
+      'model-viewer': React.DetailedHTMLProps<
+        React.HTMLAttributes<HTMLElement> & ModelViewerAttributes,
+        HTMLElement
+      >;
+    }
   }
 }

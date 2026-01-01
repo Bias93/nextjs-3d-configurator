@@ -128,8 +128,19 @@ export function ColorPicker({ viewerRef, disabled = false }: ColorPickerProps) {
     applyColor(selectedMaterial, e.target.value);
   }, [selectedMaterial, applyColor]);
 
-  if (disabled || materials.length === 0) {
+  if (disabled) {
     return null;
+  }
+
+  if (materials.length === 0) {
+    return (
+      <div className="space-y-3">
+        <label className="block text-xs font-medium text-surface-400 uppercase tracking-wider">
+          Colori
+        </label>
+        <p className="text-xs text-surface-500">Carica un modello per vedere i colori disponibili</p>
+      </div>
+    );
   }
 
   const currentMaterial = materials.find(m => m.name === selectedMaterial);
