@@ -1,0 +1,102 @@
+@import "tailwindcss";
+
+@theme {
+  /* Typography - Geist font family */
+  --font-sans: 'Geist', system-ui, -apple-system, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, monospace;
+
+  /* Industrial/Premium palette */
+  --color-surface-50: oklch(0.98 0.005 75);
+  --color-surface-100: oklch(0.95 0.008 75);
+  --color-surface-200: oklch(0.88 0.012 75);
+  --color-surface-300: oklch(0.78 0.015 75);
+  --color-surface-400: oklch(0.65 0.018 75);
+  --color-surface-500: oklch(0.50 0.020 75);
+  --color-surface-600: oklch(0.40 0.018 75);
+  --color-surface-700: oklch(0.30 0.015 75);
+  --color-surface-800: oklch(0.20 0.012 75);
+  --color-surface-900: oklch(0.12 0.008 75);
+  --color-surface-950: oklch(0.08 0.005 75);
+
+  /* Accent - Copper/Bronze */
+  --color-accent-400: oklch(0.72 0.12 55);
+  --color-accent-500: oklch(0.62 0.14 50);
+  --color-accent-600: oklch(0.52 0.12 48);
+
+  /* Status */
+  --color-success: oklch(0.72 0.15 145);
+  --color-warning: oklch(0.80 0.15 85);
+  --color-error: oklch(0.65 0.20 25);
+
+  /* Spacing scale */
+  --spacing-18: 4.5rem;
+  --spacing-22: 5.5rem;
+
+  /* Border radius */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+}
+
+/* Base styles */
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-surface-950);
+  color: var(--color-surface-100);
+}
+
+/* Selection */
+::selection {
+  background-color: var(--color-accent-500);
+  color: var(--color-surface-950);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-surface-900);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-surface-600);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-surface-500);
+}
+
+/* Model viewer styling */
+model-viewer {
+  --poster-color: transparent;
+  --progress-bar-color: var(--color-accent-500);
+  --progress-bar-height: 3px;
+}
+
+model-viewer::part(default-progress-bar) {
+  background-color: var(--color-accent-500);
+}
+
+/* Focus states */
+:focus-visible {
+  outline: 2px solid var(--color-accent-500);
+  outline-offset: 2px;
+}
+
+/* Transitions */
+* {
+  transition-property: color, background-color, border-color, outline-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
