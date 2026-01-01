@@ -36,8 +36,8 @@ A modern, interactive 3D product configurator built with Next.js and Google's mo
 ### Installation
 
 ```bash
-git clone https://github.com/Bias93/3d-configurator.git
-cd 3d-configurator
+git clone https://github.com/Bias93/nextjs-3d-configurator.git
+cd nextjs-3d-configurator
 npm install
 ```
 
