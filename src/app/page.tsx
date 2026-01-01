@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { clsx } from 'clsx';
 import dynamic from 'next/dynamic';
 import { ModelUploader } from '@/components/ModelUploader';
 import { TextureUploader } from '@/components/TextureUploader';
@@ -103,14 +104,19 @@ export default function ConfiguratorPage() {
   }, []);
 
   return (
-    <div className="min-h-screen flex flex-col-reverse lg:flex-row">
-      {/* Mobile toggle button - fixed at bottom */}
+    <div className="min-h-screen flex flex-col lg:flex-row bg-surface-950 overflow-hidden">
+      {/* Mobile Toggle Button - Floating and refined */}
       <button
         onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-        className="lg:hidden fixed bottom-4 right-4 z-50 w-14 h-14 rounded-full bg-accent-500 text-surface-950 shadow-lg flex items-center justify-center active:scale-95 transition-transform"
+        className={clsx(
+          "lg:hidden fixed bottom-6 right-6 z-50 w-14 h-14 rounded-2xl shadow-2xl flex items-center justify-center transition-all duration-300 active:scale-95",
+          isSidebarOpen 
+            ? "bg-surface-800 text-surface-400 rotate-90" 
+            : "bg-accent-500 text-surface-950 ring-4 ring-accent-500/20"
+        )}
         aria-label={isSidebarOpen ? 'Close controls' : 'Open controls'}
       >
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
           {isSidebarOpen ? (
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
           ) : (
@@ -119,94 +125,8 @@ export default function ConfiguratorPage() {
         </svg>
       </button>
 
-      {/* Sidebar / Controls panel */}
-      <aside className={`
-        w-full lg:w-80 xl:w-96 shrink-0 bg-surface-900 border-t lg:border-t-0 lg:border-r border-surface-800
-        transition-all duration-300 overflow-hidden
-        ${isSidebarOpen ? 'max-h-[80vh]' : 'max-h-0 lg:max-h-none'}
-      `}>
-        <div className="p-6 lg:p-8 h-full flex flex-col">
-          <header className="mb-6 lg:mb-8">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 rounded-lg bg-linear-to-br from-accent-400 to-accent-600 flex items-center justify-center">
-                <svg className="w-5 h-5 text-surface-950" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                </svg>
-              </div>
-              <div>
-                <h1 className="text-lg font-semibold text-surface-100 tracking-tight">
-                  3D Configurator
-                </h1>
-                <p className="text-xs text-surface-500 font-mono">
-                  Customize your product
-                </p>
-              </div>
-            </div>
-          </header>
-
-          <div className="space-y-5 flex-1 overflow-y-auto">
-            <ModelUploader 
-              onModelSelect={handleModelSelect}
-              currentModel={modelUrl}
-              modelName={modelName}
-            />
-
-            <div className="h-px bg-surface-800" />
-
-            <TextureUploader 
-              onTextureSelect={handleTextureSelect}
-              disabled={!modelUrl}
-              currentTexture={textureUrl}
-            />
-
-            <div className="h-px bg-surface-800" />
-
-            <ColorPicker 
-              viewerRef={viewerRef}
-              disabled={!modelUrl}
-            />
-
-            {textureApplied && (
-              <div className="flex items-center gap-2 p-3 rounded-lg bg-success/10 border border-success/20">
-                <svg className="w-4 h-4 text-success shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                <span className="text-sm text-success">Texture applied</span>
-              </div>
-            )}
-          </div>
-
-          {/* Controls help - hidden on mobile for space */}
-          <div className="hidden lg:block mt-6 pt-6 border-t border-surface-800">
-            <h3 className="text-xs font-medium text-surface-500 uppercase tracking-wider mb-3">
-              Controls
-            </h3>
-            <ul className="space-y-2 text-sm text-surface-400">
-              <li className="flex items-center gap-2">
-                <kbd className="px-1.5 py-0.5 text-xs bg-surface-800 rounded font-mono">
-                  Drag
-                </kbd>
-                <span>Rotate</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <kbd className="px-1.5 py-0.5 text-xs bg-surface-800 rounded font-mono">
-                  Scroll
-                </kbd>
-                <span>Zoom</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <kbd className="px-1.5 py-0.5 text-xs bg-surface-800 rounded font-mono">
-                  2 fingers
-                </kbd>
-                <span>Pan</span>
-              </li>
-            </ul>
-          </div>
-        </div>
-      </aside>
-
-      {/* Main viewer - now appears first on mobile due to flex-col-reverse */}
-      <main className="flex-1 relative bg-surface-950 h-[50vh] lg:h-auto lg:min-h-screen">
+      {/* Main viewer - Full screen background on mobile */}
+      <main className="flex-1 relative bg-surface-950 h-[65vh] lg:h-auto lg:min-h-screen order-1 lg:order-2">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,var(--tw-gradient-stops))] from-surface-900 via-surface-950 to-surface-950" />
         
         <div 
@@ -224,7 +144,7 @@ export default function ConfiguratorPage() {
           {modelUrl ? (
             <>
               <ProductViewer 
-                modelSrc={modelUrl}
+                modelSrc={modelUrl as string}
                 onTextureApplied={handleTextureApplied}
               />
               <ViewerControls
@@ -255,14 +175,110 @@ export default function ConfiguratorPage() {
         </div>
 
         {modelUrl && (
-          <div className="absolute top-4 right-4 z-20">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-800/80 backdrop-blur-sm border border-surface-700">
+          <div className="absolute top-6 right-6 z-20">
+            <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-surface-800/80 backdrop-blur-md border border-surface-700 shadow-xl">
               <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-              <span className="text-xs text-surface-300 font-medium">AR Ready</span>
+              <span className="text-xs text-surface-200 font-semibold uppercase tracking-wider">AR Ready</span>
             </div>
           </div>
         )}
       </main>
+
+      {/* Sidebar Controls - Modern Sidebar (Desktop) / Bottom Sheet (Mobile) */}
+      <aside className={clsx(
+        "z-40 transition-all duration-500 order-2 lg:order-1",
+        "w-full lg:w-80 xl:w-96 shrink-0 bg-surface-900 border-surface-800 lg:border-r",
+        "fixed bottom-0 lg:relative lg:translate-y-0",
+        isSidebarOpen 
+          ? "translate-y-0" 
+          : "translate-y-[calc(100%-80px)] lg:translate-y-0"
+      )}>
+        {/* Mobile Handle */}
+        <div 
+          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+          className="lg:hidden w-full h-20 flex flex-col items-center justify-center cursor-pointer"
+        >
+          <div className="w-12 h-1 bg-surface-700 rounded-full mb-2" />
+          <span className="text-[10px] font-bold text-surface-500 uppercase tracking-[0.2em]">
+            {isSidebarOpen ? 'Swipe down to minimize' : 'Tap to customize'}
+          </span>
+        </div>
+
+        <div className="p-6 lg:p-8 h-[70vh] lg:h-full flex flex-col">
+          <header className="hidden lg:block mb-10">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-linear-to-br from-accent-400 to-accent-600 flex items-center justify-center shadow-lg shadow-accent-500/20">
+                <svg className="w-6 h-6 text-surface-950" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                </svg>
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-surface-500 tracking-tight leading-none mb-1">
+                  CONFIGURATOR
+                </h1>
+                <p className="text-[10px] text-accent-500 font-black uppercase tracking-widest">
+                  Professional Suite
+                </p>
+              </div>
+            </div>
+          </header>
+
+          <div className="space-y-8 flex-1 overflow-y-auto pr-2 custom-scrollbar">
+            <ModelUploader 
+              onModelSelect={handleModelSelect}
+              currentModel={modelUrl}
+              modelName={modelName}
+            />
+
+            <div className="h-px bg-linear-to-r from-transparent via-surface-700 to-transparent" />
+
+            <TextureUploader 
+              onTextureSelect={handleTextureSelect}
+              disabled={!modelUrl}
+              currentTexture={textureUrl}
+            />
+
+            <div className="h-px bg-linear-to-r from-transparent via-surface-700 to-transparent" />
+
+            <ColorPicker 
+              viewerRef={viewerRef}
+              disabled={!modelUrl}
+            />
+
+            {textureApplied && (
+              <div className="flex items-center gap-3 p-4 rounded-xl bg-success/5 border border-success/20 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <div className="w-6 h-6 rounded-full bg-success/20 flex items-center justify-center">
+                  <svg className="w-4 h-4 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <span className="text-sm font-medium text-success">Custom texture applied successfully</span>
+              </div>
+            )}
+          </div>
+
+          {/* Controls help - Always hidden on mobile for cleaner look */}
+          <div className="hidden lg:block mt-8 pt-8 border-t border-surface-800">
+            <h3 className="text-[10px] font-black text-surface-500 uppercase tracking-[0.2em] mb-4">
+              Interaction Guide
+            </h3>
+            <div className="grid grid-cols-3 gap-2">
+              <div className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-surface-950/50 border border-surface-800">
+                <div className="text-xl">🖱️</div>
+                <span className="text-[9px] font-bold text-surface-400 uppercase">Rotate</span>
+              </div>
+              <div className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-surface-950/50 border border-surface-800">
+                <div className="text-xl">🔘</div>
+                <span className="text-[9px] font-bold text-surface-400 uppercase">Zoom</span>
+              </div>
+              <div className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-surface-950/50 border border-surface-800">
+                <div className="text-xl">🖐️</div>
+                <span className="text-[9px] font-bold text-surface-400 uppercase">Pan</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
     </div>
   );
 }

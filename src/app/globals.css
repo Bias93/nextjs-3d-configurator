@@ -84,8 +84,27 @@ model-viewer {
   --progress-bar-height: 3px;
 }
 
+model-viewer::part(default-ar-button) {
+  display: none;
+}
+
 model-viewer::part(default-progress-bar) {
   background-color: var(--color-accent-500);
+}
+
+/* Custom Bottom Sheet Animation */
+.bottom-sheet-content {
+  transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.3s ease;
+}
+
+.bottom-sheet-open {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.bottom-sheet-closed {
+  transform: translateY(100%);
+  opacity: 0;
 }
 
 /* Focus states */
