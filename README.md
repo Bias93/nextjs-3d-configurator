@@ -103,5 +103,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 **Bias93** — [GitHub](https://github.com/Bias93)
 
 ---
-
-Made with ❤️ using Next.js and model-viewer
