@@ -14,21 +14,22 @@ interface ColorPickerProps {
   disabled?: boolean;
 }
 
-// Palette colori predefinita
 const COLOR_PRESETS = [
-  { name: 'Nero', value: '#1a1a1a' },
-  { name: 'Bianco', value: '#f5f5f5' },
-  { name: 'Rosso', value: '#dc2626' },
-  { name: 'Blu', value: '#2563eb' },
-  { name: 'Verde', value: '#16a34a' },
-  { name: 'Arancio', value: '#ea580c' },
-  { name: 'Giallo', value: '#eab308' },
-  { name: 'Viola', value: '#9333ea' },
-  { name: 'Rosa', value: '#ec4899' },
+  { name: 'Black', value: '#1a1a1a' },
+  { name: 'White', value: '#f5f5f5' },
+  { name: 'Red', value: '#dc2626' },
+  { name: 'Blue', value: '#2563eb' },
+  { name: 'Green', value: '#16a34a' },
+  { name: 'Orange', value: '#ea580c' },
+  { name: 'Yellow', value: '#eab308' },
+  { name: 'Purple', value: '#9333ea' },
+  { name: 'Pink', value: '#ec4899' },
   { name: 'Teal', value: '#0d9488' },
 ];
 
-// Converte HEX in RGB normalizzato (0-1)
+/**
+ * Converts HEX color to normalized RGB array (0-1 range) for glTF materials.
+ */
 function hexToRgbNormalized(hex: string): [number, number, number, number] {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
   if (!result) return [1, 1, 1, 1];
@@ -41,12 +42,28 @@ function hexToRgbNormalized(hex: string): [number, number, number, number] {
   ];
 }
 
+/**
+ * Formats material name from snake_case or camelCase to Title Case.
+ */
+function formatMaterialName(name: string): string {
+  return name
+    .replace(/[-_]/g, ' ')
+    .replace(/([A-Z])/g, ' $1')
+    .trim()
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+}
+
+/**
+ * Material color picker component for 3D models.
+ * Allows users to select and apply colors to individual materials.
+ */
 export function ColorPicker({ viewerRef, disabled = false }: ColorPickerProps) {
   const [materials, setMaterials] = useState<MaterialColor[]>([]);
   const [selectedMaterial, setSelectedMaterial] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Carica lista materiali dal modello
   const loadMaterials = useCallback(() => {
     const viewer = viewerRef.current?.querySelector('model-viewer') as ModelViewerElement | null;
     if (!viewer?.model) return;
@@ -56,7 +73,7 @@ export function ColorPicker({ viewerRef, disabled = false }: ColorPickerProps) {
     const materialList: MaterialColor[] = viewer.model.materials.map((mat) => ({
       name: mat.name,
       displayName: formatMaterialName(mat.name),
-      color: '#888888', // Default
+      color: '#888888',
     }));
 
     setMaterials(materialList);
@@ -66,30 +83,16 @@ export function ColorPicker({ viewerRef, disabled = false }: ColorPickerProps) {
     setIsLoading(false);
   }, [viewerRef, selectedMaterial]);
 
-  // Formatta nome materiale per display
-  function formatMaterialName(name: string): string {
-    return name
-      .replace(/[-_]/g, ' ')
-      .replace(/([A-Z])/g, ' $1')
-      .trim()
-      .split(' ')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-      .join(' ');
-  }
-
-  // Ascolta evento load del model-viewer
   useEffect(() => {
     const viewer = viewerRef.current?.querySelector('model-viewer');
     if (!viewer) return;
 
     const handleLoad = () => {
-      // Piccolo delay per assicurarsi che il modello sia pronto
       setTimeout(loadMaterials, 100);
     };
 
     viewer.addEventListener('load', handleLoad);
     
-    // Se già caricato
     if ((viewer as ModelViewerElement).model) {
       handleLoad();
     }
@@ -99,7 +102,6 @@ export function ColorPicker({ viewerRef, disabled = false }: ColorPickerProps) {
     };
   }, [viewerRef, loadMaterials]);
 
-  // Applica colore al materiale
   const applyColor = useCallback((materialName: string, hexColor: string) => {
     const viewer = viewerRef.current?.querySelector('model-viewer') as ModelViewerElement | null;
     if (!viewer?.model) return;
@@ -110,19 +112,16 @@ export function ColorPicker({ viewerRef, disabled = false }: ColorPickerProps) {
     const rgbColor = hexToRgbNormalized(hexColor);
     material.pbrMetallicRoughness.setBaseColorFactor(rgbColor);
 
-    // Aggiorna stato locale
     setMaterials(prev => prev.map(m => 
       m.name === materialName ? { ...m, color: hexColor } : m
     ));
   }, [viewerRef]);
 
-  // Gestisci selezione colore
   const handleColorSelect = useCallback((hexColor: string) => {
     if (!selectedMaterial) return;
     applyColor(selectedMaterial, hexColor);
   }, [selectedMaterial, applyColor]);
 
-  // Gestisci input colore custom
   const handleCustomColor = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     if (!selectedMaterial) return;
     applyColor(selectedMaterial, e.target.value);
@@ -136,9 +135,9 @@ export function ColorPicker({ viewerRef, disabled = false }: ColorPickerProps) {
     return (
       <div className="space-y-3">
         <label className="block text-xs font-medium text-surface-400 uppercase tracking-wider">
-          Colori
+          Colors
         </label>
-        <p className="text-xs text-surface-500">Carica un modello per vedere i colori disponibili</p>
+        <p className="text-xs text-surface-500">Load a model to see available colors</p>
       </div>
     );
   }
@@ -148,20 +147,19 @@ export function ColorPicker({ viewerRef, disabled = false }: ColorPickerProps) {
   return (
     <div className="space-y-4">
       <label className="block text-xs font-medium text-surface-400 uppercase tracking-wider">
-        Colori
+        Colors
       </label>
 
       {isLoading ? (
         <div className="flex items-center gap-2 text-sm text-surface-500">
           <div className="w-4 h-4 border-2 border-accent-500 border-t-transparent rounded-full animate-spin" />
-          Caricamento materiali...
+          Loading materials...
         </div>
       ) : (
         <>
-          {/* Selettore materiale */}
           {materials.length > 1 && (
             <div className="space-y-2">
-              <span className="text-xs text-surface-500">Parte da colorare</span>
+              <span className="text-xs text-surface-500">Select part</span>
               <div className="flex flex-wrap gap-2">
                 {materials.map((mat) => (
                   <button
@@ -182,11 +180,10 @@ export function ColorPicker({ viewerRef, disabled = false }: ColorPickerProps) {
             </div>
           )}
 
-          {/* Palette colori */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-xs text-surface-500">
-                {materials.length === 1 ? materials[0].displayName : 'Scegli colore'}
+                {materials.length === 1 ? materials[0].displayName : 'Choose color'}
               </span>
               {currentMaterial && (
                 <div 
@@ -210,11 +207,11 @@ export function ColorPicker({ viewerRef, disabled = false }: ColorPickerProps) {
                   )}
                   style={{ backgroundColor: color.value }}
                   title={color.name}
+                  aria-label={`Select ${color.name}`}
                 />
               ))}
             </div>
 
-            {/* Color picker custom */}
             <div className="flex items-center gap-3 pt-2">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
@@ -222,8 +219,9 @@ export function ColorPicker({ viewerRef, disabled = false }: ColorPickerProps) {
                   value={currentMaterial?.color || '#888888'}
                   onChange={handleCustomColor}
                   className="w-8 h-8 rounded cursor-pointer bg-transparent border-0"
+                  aria-label="Custom color picker"
                 />
-                <span className="text-xs text-surface-500">Colore personalizzato</span>
+                <span className="text-xs text-surface-500">Custom color</span>
               </label>
             </div>
           </div>

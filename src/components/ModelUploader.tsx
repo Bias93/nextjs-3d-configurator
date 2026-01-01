@@ -9,6 +9,12 @@ interface ModelUploaderProps {
   modelName?: string | null;
 }
 
+const VALID_EXTENSIONS = ['.glb', '.gltf'];
+
+/**
+ * 3D model upload component with drag-and-drop support.
+ * Accepts GLB and glTF file formats.
+ */
 export function ModelUploader({ 
   onModelSelect, 
   currentModel,
@@ -19,18 +25,16 @@ export function ModelUploader({
   const inputRef = useRef<HTMLInputElement>(null);
 
   const processFile = useCallback((file: File) => {
-    const validExtensions = ['.glb', '.gltf'];
     const extension = file.name.toLowerCase().slice(file.name.lastIndexOf('.'));
     
-    if (!validExtensions.includes(extension)) {
-      alert('Per favore seleziona un file GLB o glTF');
+    if (!VALID_EXTENSIONS.includes(extension)) {
+      alert('Please select a GLB or glTF file');
       return;
     }
 
     setIsLoading(true);
     const url = URL.createObjectURL(file);
     
-    // Simulate slight delay for UX
     setTimeout(() => {
       onModelSelect(url, file.name);
       setIsLoading(false);
@@ -70,7 +74,7 @@ export function ModelUploader({
   return (
     <div className="space-y-3">
       <label className="block text-xs font-medium text-surface-400 uppercase tracking-wider">
-        Modello 3D
+        3D Model
       </label>
 
       <div
@@ -85,6 +89,9 @@ export function ModelUploader({
             ? 'border-accent-500 bg-accent-500/10' 
             : 'border-surface-700 bg-surface-900/50 hover:border-surface-500 hover:bg-surface-800/50'
         )}
+        role="button"
+        tabIndex={0}
+        aria-label="Upload 3D model"
       >
         <input
           ref={inputRef}
@@ -97,7 +104,7 @@ export function ModelUploader({
         {isLoading ? (
           <div className="flex flex-col items-center gap-3">
             <div className="w-8 h-8 border-2 border-accent-500 border-t-transparent rounded-full animate-spin" />
-            <span className="text-sm text-surface-400">Caricamento...</span>
+            <span className="text-sm text-surface-400">Loading...</span>
           </div>
         ) : currentModel ? (
           <div className="flex flex-col items-center gap-3">
@@ -108,9 +115,9 @@ export function ModelUploader({
             </div>
             <div className="text-center">
               <p className="text-sm text-surface-200 font-medium truncate max-w-[180px]">
-                {modelName || 'Modello caricato'}
+                {modelName || 'Model loaded'}
               </p>
-              <p className="text-xs text-surface-500 mt-1">Clicca per cambiare</p>
+              <p className="text-xs text-surface-500 mt-1">Click to change</p>
             </div>
           </div>
         ) : (
@@ -132,10 +139,10 @@ export function ModelUploader({
               </svg>
             </div>
             <p className="text-sm text-surface-300 text-center">
-              {isDragOver ? 'Rilascia per caricare' : 'Trascina o clicca'}
+              {isDragOver ? 'Drop to upload' : 'Drag or click'}
             </p>
             <p className="text-xs text-surface-500 mt-1">
-              File GLB o glTF
+              GLB or glTF files
             </p>
           </>
         )}

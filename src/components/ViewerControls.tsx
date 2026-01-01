@@ -10,6 +10,10 @@ interface ViewerControlsProps {
   hasModel?: boolean;
 }
 
+/**
+ * Floating control buttons for the 3D viewer.
+ * Provides screenshot, reset view, and auto-rotate toggle functionality.
+ */
 export function ViewerControls({
   onScreenshot,
   onReset,
@@ -31,12 +35,12 @@ export function ViewerControls({
 
   return (
     <div className="absolute bottom-4 left-4 flex gap-2">
-      {/* Auto-rotate toggle */}
       <button
         onClick={onToggleAutoRotate}
         disabled={!hasModel}
         className={buttonStyle}
-        title={isAutoRotating ? 'Ferma rotazione' : 'Avvia rotazione'}
+        title={isAutoRotating ? 'Stop rotation' : 'Start rotation'}
+        aria-label={isAutoRotating ? 'Stop rotation' : 'Start rotation'}
       >
         <svg 
           className={clsx(
@@ -56,12 +60,12 @@ export function ViewerControls({
         </svg>
       </button>
 
-      {/* Reset view */}
       <button
         onClick={onReset}
         disabled={!hasModel}
         className={buttonStyle}
-        title="Resetta vista"
+        title="Reset view"
+        aria-label="Reset view"
       >
         <svg className="w-5 h-5 text-surface-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path 
@@ -73,12 +77,12 @@ export function ViewerControls({
         </svg>
       </button>
 
-      {/* Screenshot */}
       <button
         onClick={onScreenshot}
         disabled={!hasModel}
         className={buttonStyle}
-        title="Salva screenshot"
+        title="Save screenshot"
+        aria-label="Save screenshot"
       >
         <svg className="w-5 h-5 text-surface-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path 

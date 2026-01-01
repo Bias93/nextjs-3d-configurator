@@ -1,172 +1,83 @@
-# Configuratore 3D Prodotti
+# 3D Product Configurator
 
-Web app per visualizzare modelli 3D (GLB/glTF) e applicare texture personalizzate in tempo reale. Ideale per e-commerce di abbigliamento sportivo, biciclette, e prodotti personalizzabili.
+A modern, interactive 3D product configurator built with Next.js and Google's model-viewer. Allows users to upload 3D models, apply custom textures, and modify material colors in real-time.
 
-## Stack Tecnologico
+## Features
 
-- **Next.js 16** - App Router, React 19, Turbopack
-- **@google/model-viewer 4.1.0** - Web component per rendering 3D
-- **Tailwind CSS 4** - Styling
-- **TypeScript 5.7** - Type safety
+- **3D Model Viewing**: Load and display GLB/glTF models with smooth camera controls
+- **Texture Customization**: Apply custom images as textures to model materials
+- **Color Picker**: Real-time material color modification with preset palette
+- **AR Support**: WebXR and Quick Look AR integration for mobile devices
+- **Screenshot Export**: Capture and download current configuration
+- **Responsive Design**: Optimized for desktop and mobile viewports
 
-## Requisiti
+## Tech Stack
 
-- Node.js 20.9+
-- npm 10+
+- **Framework**: Next.js 15 with React 19
+- **3D Rendering**: Google model-viewer
+- **Styling**: Tailwind CSS 4
+- **Language**: TypeScript
 
-## Installazione
+## Getting Started
+
+### Prerequisites
+
+- Node.js 18+
+- npm or yarn
+
+### Installation
 
 ```bash
-# Clona o estrai il progetto
-cd 3d-configurator
-
-# Installa dipendenze
 npm install
+```
 
-# Avvia in sviluppo
+### Development
+
+```bash
 npm run dev
 ```
 
-Apri http://localhost:3000
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-## Uso
+### Production Build
 
-### 1. Prepara il modello 3D
+```bash
+npm run build
+npm start
+```
 
-Il modello deve essere in formato **GLB** (consigliato) o **glTF**.
+## Usage
 
-**Conversione da FBX a GLB con Blender (gratuito):**
+1. **Upload a Model**: Drag and drop or click to upload a GLB/glTF file
+2. **Apply Textures**: Upload an image (JPG, PNG, WebP) to apply as a texture
+3. **Customize Colors**: Select materials and apply colors from the palette
+4. **Take Screenshot**: Use the camera button to export your configuration
 
-1. Apri Blender → File → Import → FBX
-2. Seleziona il file FBX
-3. File → Export → glTF 2.0 (.glb/.gltf)
-4. Scegli "GLB" come formato
-5. Esporta
-
-### 2. Carica e personalizza
-
-1. Trascina il file GLB nell'area "Modello 3D"
-2. Trascina un'immagine (JPG/PNG/WebP) nell'area "La tua grafica"
-3. La texture viene applicata automaticamente al modello
-
-### 3. Funzionalità
-
-- **Rotazione automatica** - Il modello ruota per mostrare tutti i lati
-- **Controlli touch/mouse** - Ruota, zoom, sposta
-- **AR Ready** - Su dispositivi compatibili, visualizza in realtà aumentata
-- **Screenshot** - Salva un'immagine della configurazione
-
-## Struttura Progetto
+## Project Structure
 
 ```
 src/
 ├── app/
-│   ├── globals.css      # Design system Tailwind v4
-│   ├── layout.tsx       # Root layout
-│   └── page.tsx         # Pagina configuratore
+│   ├── page.tsx          # Main configurator page
+│   ├── layout.tsx         # Root layout
+│   └── globals.css        # Global styles
 ├── components/
-│   ├── ProductViewer.tsx    # Wrapper model-viewer
-│   ├── ModelUploader.tsx    # Upload modelli GLB
-│   ├── TextureUploader.tsx  # Upload texture
-│   └── ViewerControls.tsx   # Controlli viewer
+│   ├── ProductViewer.tsx  # 3D viewer component
+│   ├── ModelUploader.tsx  # Model file upload
+│   ├── TextureUploader.tsx # Texture image upload
+│   ├── ColorPicker.tsx    # Material color picker
+│   └── ViewerControls.tsx # Viewer action buttons
 └── types/
-    └── model-viewer.d.ts    # TypeScript definitions
+    └── model-viewer.d.ts  # TypeScript definitions
 ```
 
-## Personalizzazione
+## Browser Support
 
-### Cambiare i colori
+- Chrome 79+
+- Firefox 70+
+- Safari 14+
+- Edge 79+
 
-Modifica `src/app/globals.css`:
-
-```css
-@theme {
-  /* Accent - cambia questi per il brand del cliente */
-  --color-accent-400: oklch(0.72 0.12 55);
-  --color-accent-500: oklch(0.62 0.14 50);
-  --color-accent-600: oklch(0.52 0.12 48);
-}
-```
-
-### Modello di default
-
-Per caricare un modello predefinito:
-
-```tsx
-// In page.tsx
-const [modelUrl, setModelUrl] = useState('/models/default.glb');
-```
-
-E posiziona il file in `public/models/default.glb`
-
-## Integrazione E-commerce
-
-Per integrare con un sistema di ordini:
-
-```tsx
-// Aggiungi un pulsante "Ordina"
-<button onClick={() => {
-  const screenshot = viewer.toDataURL('image/png');
-  // Invia a backend con configurazione
-  submitOrder({ 
-    productId, 
-    textureFile, 
-    previewImage: screenshot 
-  });
-}}>
-  Ordina ora
-</button>
-```
-
-## Build Produzione
-
-```bash
-npm run build
-npm run start
-```
-
-Oppure deploy su Vercel:
-
-```bash
-npx vercel
-```
-
-## Formati Supportati
-
-### Modelli 3D
-- GLB (consigliato)
-- glTF
-
-### Texture
-- JPEG
-- PNG
-- WebP
-
-## Browser Supportati
-
-- Chrome 90+
-- Firefox 90+
-- Safari 15+
-- Edge 90+
-
-AR disponibile su:
-- Android (Chrome) via Scene Viewer
-- iOS (Safari) via Quick Look
-
-## Troubleshooting
-
-**Il modello non si vede:**
-- Verifica che il file sia un GLB valido
-- Controlla la console per errori
-
-**La texture non si applica:**
-- Il modello deve avere materiali PBR con baseColorTexture
-- Verifica che l'immagine sia in un formato supportato
-
-**Performance lenta:**
-- Ottimizza il modello (ridurre poligoni)
-- Comprimi le texture (max 2048x2048)
-
-## Licenza
+## License
 
 MIT

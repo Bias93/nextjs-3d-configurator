@@ -9,6 +9,10 @@ interface TextureUploaderProps {
   currentTexture?: string | null;
 }
 
+/**
+ * Texture upload component with drag-and-drop support.
+ * Accepts JPG, PNG, and WebP image formats.
+ */
 export function TextureUploader({ 
   onTextureSelect, 
   disabled = false,
@@ -19,7 +23,7 @@ export function TextureUploader({
 
   const processFile = useCallback((file: File) => {
     if (!file.type.startsWith('image/')) {
-      alert('Per favore seleziona un file immagine (JPG, PNG, WebP)');
+      alert('Please select an image file (JPG, PNG, WebP)');
       return;
     }
 
@@ -62,7 +66,7 @@ export function TextureUploader({
   return (
     <div className="space-y-3">
       <label className="block text-xs font-medium text-surface-400 uppercase tracking-wider">
-        La tua grafica
+        Custom Texture
       </label>
 
       <div
@@ -78,6 +82,9 @@ export function TextureUploader({
             ? 'border-accent-500 bg-accent-500/10' 
             : 'border-surface-700 bg-surface-900/50 hover:border-surface-500 hover:bg-surface-800/50'
         )}
+        role="button"
+        tabIndex={disabled ? -1 : 0}
+        aria-label="Upload texture image"
       >
         <input
           ref={inputRef}
@@ -93,7 +100,7 @@ export function TextureUploader({
             <div className="relative">
               <img 
                 src={currentTexture} 
-                alt="Texture selezionata"
+                alt="Selected texture"
                 className="w-20 h-20 object-cover rounded-md ring-2 ring-accent-500/50"
               />
               <div className="absolute -top-1 -right-1 w-5 h-5 bg-success rounded-full flex items-center justify-center">
@@ -102,7 +109,7 @@ export function TextureUploader({
                 </svg>
               </div>
             </div>
-            <span className="text-xs text-surface-400">Clicca per cambiare</span>
+            <span className="text-xs text-surface-400">Click to change</span>
           </div>
         ) : (
           <>
@@ -128,7 +135,7 @@ export function TextureUploader({
               </svg>
             </div>
             <p className="text-sm text-surface-300 text-center">
-              {isDragOver ? 'Rilascia per caricare' : 'Trascina o clicca'}
+              {isDragOver ? 'Drop to upload' : 'Drag or click'}
             </p>
             <p className="text-xs text-surface-500 mt-1">
               JPG, PNG, WebP

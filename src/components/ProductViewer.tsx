@@ -3,23 +3,30 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 
 interface ProductViewerProps {
+  /** URL of the 3D model (GLB/glTF format) */
   modelSrc: string;
+  /** Poster image shown during loading */
   poster?: string;
+  /** Alt text for accessibility */
   alt?: string;
+  /** Callback fired when a texture is successfully applied */
   onTextureApplied?: () => void;
 }
 
+/**
+ * Interactive 3D product viewer component using Google's model-viewer.
+ * Supports texture customization, camera controls, and AR capabilities.
+ */
 export function ProductViewer({ 
   modelSrc, 
   poster,
-  alt = 'Modello 3D prodotto',
+  alt = '3D Product Model',
   onTextureApplied 
 }: ProductViewerProps) {
   const viewerRef = useRef<ModelViewerElement | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isModelViewerReady, setIsModelViewerReady] = useState(false);
 
-  // Load model-viewer script
   useEffect(() => {
     if (typeof window === 'undefined') return;
     
@@ -35,24 +42,16 @@ export function ProductViewer({
     document.head.appendChild(script);
   }, []);
 
-  // Listen for model load - DEVE usare addEventListener per web components
   useEffect(() => {
     const viewer = viewerRef.current;
     if (!viewer || !isModelViewerReady) return;
 
-    const handleLoad = () => {
-      console.log('✅ Modello caricato');
-      setIsLoaded(true);
-    };
-
-    const handleError = (e: Event) => {
-      console.error('❌ Errore caricamento modello:', e);
-    };
+    const handleLoad = () => setIsLoaded(true);
+    const handleError = (e: Event) => console.error('Model loading error:', e);
 
     viewer.addEventListener('load', handleLoad);
     viewer.addEventListener('error', handleError);
 
-    // Se il modello è già caricato (cache)
     if (viewer.model) {
       setIsLoaded(true);
     }
@@ -63,12 +62,14 @@ export function ProductViewer({
     };
   }, [isModelViewerReady, modelSrc]);
 
-  // Reset isLoaded quando cambia il modello
   useEffect(() => {
     setIsLoaded(false);
   }, [modelSrc]);
 
-  // Apply custom texture
+  /**
+   * Applies a custom texture to the model's materials.
+   * Targets materials with 'frame' or 'custom' in their name, or applies to all if none found.
+   */
   const applyTexture = useCallback(async (textureUrl: string) => {
     const viewer = viewerRef.current as ModelViewerElement | null;
     if (!viewer?.model) return;
@@ -79,36 +80,29 @@ export function ProductViewer({
       
       const targetMaterial = materials.find((m: Material) => 
         m.name.toLowerCase().includes('telaio') || 
-        m.name.toLowerCase().includes('custom')
+        m.name.toLowerCase().includes('custom') ||
+        m.name.toLowerCase().includes('frame')
       );
 
       const materialsToUpdate = targetMaterial ? [targetMaterial] : materials;
 
       for (const material of materialsToUpdate) {
-        // Log per debug
-        console.log('Materiale:', material.name, material);
-
         if (material.pbrMetallicRoughness.setBaseColorTexture) {
-             material.pbrMetallicRoughness.setBaseColorTexture(newTexture);
-             // Reset colore a bianco per evitare che il colore precedente modifichi la texture
-             if (material.pbrMetallicRoughness.setBaseColorFactor) {
-               material.pbrMetallicRoughness.setBaseColorFactor([1, 1, 1, 1]);
-             }
+          material.pbrMetallicRoughness.setBaseColorTexture(newTexture);
+          if (material.pbrMetallicRoughness.setBaseColorFactor) {
+            material.pbrMetallicRoughness.setBaseColorFactor([1, 1, 1, 1]);
+          }
         } else if (material.pbrMetallicRoughness.baseColorTexture) {
-             // Fallback per alcune versioni o strutture diverse
-             (material.pbrMetallicRoughness.baseColorTexture as any).setTexture(newTexture);
-        } else {
-             console.warn('Impossibile settare texture su materiale:', material.name);
+          (material.pbrMetallicRoughness.baseColorTexture as any).setTexture(newTexture);
         }
       }
       
       onTextureApplied?.();
     } catch (error) {
-      console.error('Errore applicazione texture:', error);
+      console.error('Texture application error:', error);
     }
   }, [onTextureApplied]);
 
-  // Expose applyTexture method
   useEffect(() => {
     if (viewerRef.current) {
       (viewerRef.current as any).applyCustomTexture = applyTexture;
@@ -120,7 +114,7 @@ export function ProductViewer({
       <div className="w-full h-full flex items-center justify-center bg-surface-900">
         <div className="flex flex-col items-center gap-4">
           <div className="w-10 h-10 border-2 border-accent-500 border-t-transparent rounded-full animate-spin" />
-          <span className="text-sm text-surface-400 font-mono">Caricamento viewer...</span>
+          <span className="text-sm text-surface-400 font-mono">Loading viewer...</span>
         </div>
       </div>
     );
@@ -128,12 +122,11 @@ export function ProductViewer({
 
   return (
     <div className="relative w-full h-full">
-      {/* Loading overlay */}
       {!isLoaded && (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-surface-900">
           <div className="flex flex-col items-center gap-4">
             <div className="w-10 h-10 border-2 border-accent-500 border-t-transparent rounded-full animate-spin" />
-            <span className="text-sm text-surface-400 font-mono">Caricamento modello...</span>
+            <span className="text-sm text-surface-400 font-mono">Loading model...</span>
           </div>
         </div>
       )}

@@ -7,7 +7,6 @@ import { TextureUploader } from '@/components/TextureUploader';
 import { ViewerControls } from '@/components/ViewerControls';
 import { ColorPicker } from '@/components/ColorPicker';
 
-// Dynamic import per evitare SSR issues con model-viewer
 const ProductViewer = dynamic(
   () => import('@/components/ProductViewer'),
   { 
@@ -20,6 +19,10 @@ const ProductViewer = dynamic(
   }
 );
 
+/**
+ * Main 3D product configurator page.
+ * Provides UI for uploading models, applying textures, and customizing colors.
+ */
 export default function ConfiguratorPage() {
   const [modelUrl, setModelUrl] = useState<string | null>(null);
   const [modelName, setModelName] = useState<string | null>(null);
@@ -29,9 +32,7 @@ export default function ConfiguratorPage() {
   
   const viewerRef = useRef<HTMLDivElement>(null);
 
-  // Handle model upload
   const handleModelSelect = useCallback((url: string, fileName: string) => {
-    // Cleanup old URL
     if (modelUrl) URL.revokeObjectURL(modelUrl);
     setModelUrl(url);
     setModelName(fileName);
@@ -39,37 +40,31 @@ export default function ConfiguratorPage() {
     setTextureApplied(false);
   }, [modelUrl]);
 
-  // Handle texture upload
   const handleTextureSelect = useCallback((url: string) => {
-    // Cleanup old URL
     if (textureUrl) URL.revokeObjectURL(textureUrl);
     setTextureUrl(url);
     
-    // Apply texture to model
     const viewer = viewerRef.current?.querySelector('model-viewer') as any;
     if (viewer?.applyCustomTexture) {
       viewer.applyCustomTexture(url);
     }
   }, [textureUrl]);
 
-  // Handle texture applied callback
   const handleTextureApplied = useCallback(() => {
     setTextureApplied(true);
   }, []);
 
-  // Screenshot
   const handleScreenshot = useCallback(() => {
     const viewer = viewerRef.current?.querySelector('model-viewer') as ModelViewerElement | null;
     if (!viewer) return;
 
     const dataUrl = viewer.toDataURL('image/png');
     const link = document.createElement('a');
-    link.download = `configurazione-${Date.now()}.png`;
+    link.download = `configuration-${Date.now()}.png`;
     link.href = dataUrl;
     link.click();
   }, []);
 
-  // Reset view
   const handleReset = useCallback(() => {
     const viewer = viewerRef.current?.querySelector('model-viewer') as any;
     if (viewer) {
@@ -78,7 +73,6 @@ export default function ConfiguratorPage() {
     }
   }, []);
 
-  // Toggle auto-rotate
   const handleToggleAutoRotate = useCallback(() => {
     setIsAutoRotating(prev => {
       const viewer = viewerRef.current?.querySelector('model-viewer') as any;
@@ -91,10 +85,8 @@ export default function ConfiguratorPage() {
 
   return (
     <div className="min-h-screen flex flex-col lg:flex-row">
-      {/* Sidebar */}
       <aside className="w-full lg:w-80 xl:w-96 shrink-0 bg-surface-900 border-b lg:border-b-0 lg:border-r border-surface-800">
         <div className="p-6 lg:p-8 h-full flex flex-col">
-          {/* Header */}
           <header className="mb-8">
             <div className="flex items-center gap-3 mb-2">
               <div className="w-10 h-10 rounded-lg bg-linear-to-br from-accent-400 to-accent-600 flex items-center justify-center">
@@ -104,16 +96,15 @@ export default function ConfiguratorPage() {
               </div>
               <div>
                 <h1 className="text-lg font-semibold text-surface-100 tracking-tight">
-                  Configuratore 3D
+                  3D Configurator
                 </h1>
                 <p className="text-xs text-surface-500 font-mono">
-                  Personalizza il tuo prodotto
+                  Customize your product
                 </p>
               </div>
             </div>
           </header>
 
-          {/* Upload sections */}
           <div className="space-y-6 flex-1">
             <ModelUploader 
               onModelSelect={handleModelSelect}
@@ -136,28 +127,26 @@ export default function ConfiguratorPage() {
               disabled={!modelUrl}
             />
 
-            {/* Status indicator */}
             {textureApplied && (
               <div className="flex items-center gap-2 p-3 rounded-lg bg-success/10 border border-success/20">
                 <svg className="w-4 h-4 text-success shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
-                <span className="text-sm text-success">Grafica applicata</span>
+                <span className="text-sm text-success">Texture applied</span>
               </div>
             )}
           </div>
 
-          {/* Instructions */}
           <div className="mt-8 pt-6 border-t border-surface-800">
             <h3 className="text-xs font-medium text-surface-500 uppercase tracking-wider mb-3">
-              Controlli
+              Controls
             </h3>
             <ul className="space-y-2 text-sm text-surface-400">
               <li className="flex items-center gap-2">
                 <kbd className="px-1.5 py-0.5 text-xs bg-surface-800 rounded font-mono">
-                  Trascina
+                  Drag
                 </kbd>
-                <span>Ruota</span>
+                <span>Rotate</span>
               </li>
               <li className="flex items-center gap-2">
                 <kbd className="px-1.5 py-0.5 text-xs bg-surface-800 rounded font-mono">
@@ -167,21 +156,18 @@ export default function ConfiguratorPage() {
               </li>
               <li className="flex items-center gap-2">
                 <kbd className="px-1.5 py-0.5 text-xs bg-surface-800 rounded font-mono">
-                  2 dita
+                  2 fingers
                 </kbd>
-                <span>Sposta</span>
+                <span>Pan</span>
               </li>
             </ul>
           </div>
         </div>
       </aside>
 
-      {/* Main viewer area */}
       <main className="flex-1 relative bg-surface-950 min-h-[60vh] lg:min-h-screen">
-        {/* Gradient background */}
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,var(--tw-gradient-stops))] from-surface-900 via-surface-950 to-surface-950" />
         
-        {/* Grid pattern overlay */}
         <div 
           className="absolute inset-0 opacity-[0.03]"
           style={{
@@ -193,7 +179,6 @@ export default function ConfiguratorPage() {
           }}
         />
 
-        {/* Viewer container */}
         <div ref={viewerRef} className="relative z-10 w-full h-full">
           {modelUrl ? (
             <>
@@ -217,16 +202,15 @@ export default function ConfiguratorPage() {
                 </svg>
               </div>
               <h2 className="text-xl font-medium text-surface-300 mb-2">
-                Nessun modello caricato
+                No model loaded
               </h2>
               <p className="text-sm text-surface-500 max-w-xs">
-                Carica un modello 3D in formato GLB per iniziare la personalizzazione
+                Upload a 3D model in GLB format to start customizing
               </p>
             </div>
           )}
         </div>
 
-        {/* AR badge */}
         {modelUrl && (
           <div className="absolute top-4 right-4 z-20">
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-800/80 backdrop-blur-sm border border-surface-700">
