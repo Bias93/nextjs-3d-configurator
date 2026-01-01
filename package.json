@@ -18,6 +18,7 @@
     "type": "git",
     "url": "https://github.com/Bias93/nextjs-3d-configurator"
   },
+  "homepage": "https://nextjs-3d-configurator.vercel.app",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -42,6 +43,6 @@
     "typescript": "^5.7.2"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": "18.x"
   }
 }

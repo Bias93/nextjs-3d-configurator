@@ -4,8 +4,11 @@
 [![Next.js](https://img.shields.io/badge/Next.js-16-black)](https://nextjs.org/)
 [![React](https://img.shields.io/badge/React-19-61dafb)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178c6)](https://www.typescriptlang.org/)
+[![Demo](https://img.shields.io/badge/Demo-Live-success)](https://nextjs-3d-configurator.vercel.app)
 
 A modern, interactive 3D product configurator built with Next.js and Google's model-viewer. Allows users to upload 3D models, apply custom textures, and modify material colors in real-time.
+
+**[🚀 Live Demo](https://nextjs-3d-configurator.vercel.app)**
 
 ## Features
 
