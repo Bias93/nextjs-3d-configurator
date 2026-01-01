@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { ModelUploader } from '@/components/ModelUploader';
 import { TextureUploader } from '@/components/TextureUploader';
@@ -32,6 +32,17 @@ export default function ConfiguratorPage() {
   
   const viewerRef = useRef<HTMLDivElement>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [canAR, setCanAR] = useState(false);
+
+  // Check AR availability after hydration
+  useEffect(() => {
+    const checkAR = () => {
+      const isARCapable = 'xr' in navigator || 
+        /Android|iPhone|iPad/i.test(navigator.userAgent);
+      setCanAR(isARCapable);
+    };
+    checkAR();
+  }, []);
 
   const handleModelSelect = useCallback((url: string, fileName: string) => {
     if (modelUrl) URL.revokeObjectURL(modelUrl);
@@ -90,10 +101,6 @@ export default function ConfiguratorPage() {
       viewer.activateAR();
     }
   }, []);
-
-  // Check if AR is available (mobile devices with AR support)
-  const canAR = typeof window !== 'undefined' && 
-    ('xr' in navigator || /Android|iPhone|iPad/i.test(navigator.userAgent));
 
   return (
     <div className="min-h-screen flex flex-col-reverse lg:flex-row">
@@ -213,7 +220,7 @@ export default function ConfiguratorPage() {
           }}
         />
 
-        <div ref={viewerRef} className="relative z-10 w-full h-full">
+        <div ref={viewerRef} className="absolute inset-0 z-10">
           {modelUrl ? (
             <>
               <ProductViewer 

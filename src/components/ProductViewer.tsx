@@ -121,7 +121,7 @@ export function ProductViewer({
   }
 
   return (
-    <div className="relative w-full h-full">
+    <div className="absolute inset-0">
       {!isLoaded && (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-surface-900">
           <div className="flex flex-col items-center gap-4">
