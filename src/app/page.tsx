@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { clsx } from 'clsx';
 import dynamic from 'next/dynamic';
 import { ModelUploader } from '@/components/ModelUploader';
 import { TextureUploader } from '@/components/TextureUploader';
@@ -39,6 +40,7 @@ export default function ConfiguratorPage() {
   const viewerRef = useRef<HTMLDivElement>(null);
   const [canAR, setCanAR] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [arStatus, setArStatus] = useState<string>('not-presenting');
 
   // Check AR availability and mobile after hydration
   useEffect(() => {
@@ -116,6 +118,10 @@ export default function ConfiguratorPage() {
     }
   }, []);
 
+  const handleARStatusChange = useCallback((status: string) => {
+    setArStatus(status);
+  }, []);
+
   return (
     <div className="min-h-screen flex flex-col lg:flex-row bg-surface-950 overflow-hidden">
 
@@ -137,9 +143,10 @@ export default function ConfiguratorPage() {
         <div ref={viewerRef} className="absolute inset-0 z-10">
           {modelUrl ? (
             <>
-              <ProductViewer 
+              <ProductViewer
                 modelSrc={modelUrl as string}
                 onTextureApplied={handleTextureApplied}
+                onARStatusChange={handleARStatusChange}
               />
               <ViewerControls
                 onScreenshot={handleScreenshot}
@@ -178,8 +185,19 @@ export default function ConfiguratorPage() {
         {modelUrl && (
           <div className="absolute top-6 right-6 z-20">
             <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-surface-800/80 backdrop-blur-md border border-surface-700 shadow-xl">
-              <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-              <span className="text-xs text-surface-200 font-semibold uppercase tracking-wider">AR Ready</span>
+              <div className={clsx(
+                'w-2 h-2 rounded-full',
+                arStatus === 'not-presenting' && 'bg-success animate-pulse',
+                arStatus === 'session-started' && 'bg-warning animate-pulse',
+                arStatus === 'object-placed' && 'bg-accent-500',
+                arStatus === 'failed' && 'bg-error'
+              )} />
+              <span className="text-xs text-surface-200 font-semibold uppercase tracking-wider">
+                {arStatus === 'not-presenting' && 'AR Ready'}
+                {arStatus === 'session-started' && 'AR Active'}
+                {arStatus === 'object-placed' && 'Placed'}
+                {arStatus === 'failed' && 'AR Failed'}
+              </span>
             </div>
           </div>
         )}

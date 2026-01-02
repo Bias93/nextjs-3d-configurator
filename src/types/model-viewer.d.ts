@@ -9,6 +9,8 @@ declare global {
     ar?: boolean;
     'ar-modes'?: string;
     'ar-scale'?: string;
+    'ar-placement'?: 'floor' | 'wall';
+    'xr-environment'?: boolean;
     'camera-controls'?: boolean;
     'touch-action'?: string;
     'auto-rotate'?: boolean;
@@ -19,7 +21,8 @@ declare global {
     exposure?: string;
     'environment-image'?: string;
     'skybox-image'?: string;
-    'tone-mapping'?: string;
+    'skybox-height'?: string;
+    'tone-mapping'?: 'neutral' | 'aces' | 'agx' | 'cineon' | 'reinhard' | 'linear' | 'none';
     loading?: 'auto' | 'lazy' | 'eager';
     reveal?: 'auto' | 'manual';
     'camera-orbit'?: string;
@@ -29,10 +32,12 @@ declare global {
     'min-field-of-view'?: string;
     'max-field-of-view'?: string;
     'interpolation-decay'?: string;
+    'ios-src'?: string;
     style?: React.CSSProperties;
     class?: string;
     className?: string;
     ref?: React.Ref<any>;
+    children?: React.ReactNode;
   }
 
   interface Texture {
@@ -67,6 +72,7 @@ declare global {
     toDataURL: (type?: string, quality?: number) => string;
     dismissPoster: () => void;
     createTexture: (uri: string, type?: string) => Promise<Texture>;
+    activateAR: () => Promise<void>;
   }
 }
 
