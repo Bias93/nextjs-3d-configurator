@@ -143,8 +143,8 @@ export const ProductViewer = forwardRef<HTMLElement, ProductViewerProps>(({
         touch-action="pan-y"
         auto-rotate
         rotation-per-second="20deg"
-        shadow-intensity="1.5"
-        shadow-softness="1"
+        shadow-intensity="1"
+        shadow-softness="0.5"
         exposure="1"
         environment-image="neutral"
         tone-mapping="neutral"
@@ -153,6 +153,8 @@ export const ProductViewer = forwardRef<HTMLElement, ProductViewerProps>(({
         max-camera-orbit="auto auto 200%"
         interaction-prompt="none"
         ar
+        ar-scale="fixed"
+        xr-environment
         ar-modes="webxr scene-viewer quick-look"
         style={{
           width: '100%',
