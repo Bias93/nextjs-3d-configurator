@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { clsx } from 'clsx';
 import dynamic from 'next/dynamic';
 import { ModelUploader } from '@/components/ModelUploader';
 import { TextureUploader } from '@/components/TextureUploader';
@@ -20,6 +19,12 @@ const ProductViewer = dynamic(
   }
 );
 
+// Dynamically import MobileDrawer to avoid SSR hydration issues with Vaul Portal
+const MobileDrawer = dynamic(
+  () => import('@/components/MobileDrawer').then(mod => ({ default: mod.MobileDrawer })),
+  { ssr: false }
+);
+
 /**
  * Main 3D product configurator page.
  * Provides UI for uploading models, applying textures, and customizing colors.
@@ -32,10 +37,10 @@ export default function ConfiguratorPage() {
   const [textureApplied, setTextureApplied] = useState(false);
   
   const viewerRef = useRef<HTMLDivElement>(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [canAR, setCanAR] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
-  // Check AR availability after hydration
+  // Check AR availability and mobile after hydration
   useEffect(() => {
     const checkAR = () => {
       const isARCapable = 'xr' in navigator || 
@@ -43,6 +48,14 @@ export default function ConfiguratorPage() {
       setCanAR(isARCapable);
     };
     checkAR();
+    
+    // Check if mobile
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
   const handleModelSelect = useCallback((url: string, fileName: string) => {
@@ -105,28 +118,9 @@ export default function ConfiguratorPage() {
 
   return (
     <div className="min-h-screen flex flex-col lg:flex-row bg-surface-950 overflow-hidden">
-      {/* Mobile Toggle Button - Floating and refined */}
-      <button
-        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-        className={clsx(
-          "lg:hidden fixed bottom-6 right-6 z-50 w-14 h-14 rounded-2xl shadow-2xl flex items-center justify-center transition-all duration-300 active:scale-95",
-          isSidebarOpen 
-            ? "bg-surface-800 text-surface-400 rotate-90" 
-            : "bg-accent-500 text-surface-950 ring-4 ring-accent-500/20"
-        )}
-        aria-label={isSidebarOpen ? 'Close controls' : 'Open controls'}
-      >
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-          {isSidebarOpen ? (
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-          ) : (
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
-          )}
-        </svg>
-      </button>
 
-      {/* Main viewer - Full screen background on mobile */}
-      <main className="flex-1 relative bg-surface-950 h-[65vh] lg:h-auto lg:min-h-screen order-1 lg:order-2">
+      {/* Main viewer - Full screen on mobile */}
+      <main className="flex-1 relative bg-surface-950 h-screen lg:h-auto lg:min-h-screen order-1 lg:order-2">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,var(--tw-gradient-stops))] from-surface-900 via-surface-950 to-surface-950" />
         
         <div 
@@ -156,6 +150,13 @@ export default function ConfiguratorPage() {
                 hasModel={true}
                 canAR={canAR}
               />
+              {/* Floating Color Picker - visible on mobile above controls */}
+              <div className="lg:hidden absolute bottom-32 left-4 right-4 z-20">
+                <ColorPicker 
+                  viewerRef={viewerRef}
+                  disabled={!modelUrl}
+                />
+              </div>
             </>
           ) : (
             <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-8">
@@ -184,28 +185,10 @@ export default function ConfiguratorPage() {
         )}
       </main>
 
-      {/* Sidebar Controls - Modern Sidebar (Desktop) / Bottom Sheet (Mobile) */}
-      <aside className={clsx(
-        "z-40 transition-all duration-500 order-2 lg:order-1",
-        "w-full lg:w-80 xl:w-96 shrink-0 bg-surface-900 border-surface-800 lg:border-r",
-        "fixed bottom-0 lg:relative lg:translate-y-0",
-        isSidebarOpen 
-          ? "translate-y-0" 
-          : "translate-y-[calc(100%-80px)] lg:translate-y-0"
-      )}>
-        {/* Mobile Handle */}
-        <div 
-          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-          className="lg:hidden w-full h-20 flex flex-col items-center justify-center cursor-pointer"
-        >
-          <div className="w-12 h-1 bg-surface-700 rounded-full mb-2" />
-          <span className="text-[10px] font-bold text-surface-500 uppercase tracking-[0.2em]">
-            {isSidebarOpen ? 'Swipe down to minimize' : 'Tap to customize'}
-          </span>
-        </div>
-
-        <div className="p-6 lg:p-8 h-[70vh] lg:h-full flex flex-col">
-          <header className="hidden lg:block mb-10">
+      {/* Desktop Sidebar */}
+      <aside className="hidden lg:flex z-40 order-2 lg:order-1 w-80 xl:w-96 shrink-0 bg-surface-900 border-r border-surface-800 flex-col">
+        <div className="p-8 h-full flex flex-col">
+          <header className="mb-10">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-xl bg-linear-to-br from-accent-400 to-accent-600 flex items-center justify-center shadow-lg shadow-accent-500/20">
                 <svg className="w-6 h-6 text-surface-950" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -257,8 +240,7 @@ export default function ConfiguratorPage() {
             )}
           </div>
 
-          {/* Controls help - Always hidden on mobile for cleaner look */}
-          <div className="hidden lg:block mt-8 pt-8 border-t border-surface-800">
+          <div className="mt-8 pt-8 border-t border-surface-800">
             <h3 className="text-[10px] font-black text-surface-500 uppercase tracking-[0.2em] mb-4">
               Interaction Guide
             </h3>
@@ -279,6 +261,18 @@ export default function ConfiguratorPage() {
           </div>
         </div>
       </aside>
+
+      {/* Mobile Bottom Sheet - Only rendered on mobile, dynamically imported */}
+      {isMobile && (
+        <MobileDrawer
+          modelUrl={modelUrl}
+          modelName={modelName}
+          textureUrl={textureUrl}
+          textureApplied={textureApplied}
+          onModelSelect={handleModelSelect}
+          onTextureSelect={handleTextureSelect}
+        />
+      )}
     </div>
   );
 }
