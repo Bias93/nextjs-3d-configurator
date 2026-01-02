@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, forwardRef } from 'react';
 
 interface ProductViewerProps {
   /** URL of the 3D model (GLB/glTF format) */
@@ -17,13 +17,16 @@ interface ProductViewerProps {
  * Interactive 3D product viewer component using Google's model-viewer.
  * Supports texture customization, camera controls, and AR capabilities.
  */
-export function ProductViewer({ 
+export const ProductViewer = forwardRef<HTMLElement, ProductViewerProps>(({ 
   modelSrc, 
   poster,
   alt = '3D Product Model',
   onTextureApplied 
-}: ProductViewerProps) {
-  const viewerRef = useRef<ModelViewerElement | null>(null);
+}, ref) => {
+  // Use a local ref if none is provided, but we mostly rely on the forwarded ref
+  const localRef = useRef<ModelViewerElement | null>(null);
+  const viewerRef = (ref || localRef) as React.MutableRefObject<ModelViewerElement | null>;
+
   const [isLoaded, setIsLoaded] = useState(false);
   const [isModelViewerReady, setIsModelViewerReady] = useState(false);
 
@@ -159,6 +162,8 @@ export function ProductViewer({
       />
     </div>
   );
-}
+});
+
+ProductViewer.displayName = 'ProductViewer';
 
 export default ProductViewer;

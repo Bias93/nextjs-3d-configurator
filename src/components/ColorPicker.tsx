@@ -84,21 +84,48 @@ export function ColorPicker({ viewerRef, disabled = false }: ColorPickerProps) {
   }, [viewerRef, selectedMaterial]);
 
   useEffect(() => {
-    const viewer = viewerRef.current?.querySelector('model-viewer');
-    if (!viewer) return;
+    const container = viewerRef.current;
+    if (!container) return;
+
+    let viewer = container.querySelector('model-viewer');
+    let observer: MutationObserver | null = null;
 
     const handleLoad = () => {
       setTimeout(loadMaterials, 100);
     };
 
-    viewer.addEventListener('load', handleLoad);
-    
-    if ((viewer as ModelViewerElement).model) {
-      handleLoad();
+    const attachListeners = (el: Element) => {
+      el.addEventListener('load', handleLoad);
+      if ((el as ModelViewerElement).model) {
+        handleLoad();
+      }
+    };
+
+    if (viewer) {
+      attachListeners(viewer);
+    } else {
+      // If viewer not found, watch for it
+      observer = new MutationObserver((mutations) => {
+        for (const mutation of mutations) {
+          if (mutation.type === 'childList') {
+            const newViewer = container.querySelector('model-viewer');
+            if (newViewer) {
+              viewer = newViewer;
+              attachListeners(newViewer);
+              observer?.disconnect();
+              break;
+            }
+          }
+        }
+      });
+      observer.observe(container, { childList: true, subtree: true });
     }
 
     return () => {
-      viewer.removeEventListener('load', handleLoad);
+      if (viewer) {
+        viewer.removeEventListener('load', handleLoad);
+      }
+      observer?.disconnect();
     };
   }, [viewerRef, loadMaterials]);
 

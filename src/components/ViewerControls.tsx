@@ -38,7 +38,7 @@ export function ViewerControls({
   );
 
   return (
-    <div className="absolute bottom-4 left-4 flex gap-2">
+    <div className="absolute bottom-24 lg:bottom-4 left-4 flex gap-2 z-30">
       <button
         onClick={onToggleAutoRotate}
         disabled={!hasModel}
