@@ -11,6 +11,39 @@ interface ModelUploaderProps {
 
 const VALID_EXTENSIONS = ['.glb', '.gltf'];
 
+// Helper to patch GLTF with blob URLs for resources
+const patchGltfContent = async (gltfFile: File, resources: Map<string, File>): Promise<string> => {
+  const text = await gltfFile.text();
+  const json = JSON.parse(text);
+
+  // Patch buffers
+  if (json.buffers) {
+    json.buffers.forEach((buffer: any) => {
+      if (buffer.uri && !buffer.uri.startsWith('data:')) {
+        const file = resources.get(buffer.uri);
+        if (file) {
+          buffer.uri = URL.createObjectURL(file);
+        }
+      }
+    });
+  }
+
+  // Patch images
+  if (json.images) {
+    json.images.forEach((image: any) => {
+      if (image.uri && !image.uri.startsWith('data:')) {
+        const file = resources.get(image.uri);
+        if (file) {
+          image.uri = URL.createObjectURL(file);
+        }
+      }
+    });
+  }
+
+  const blob = new Blob([JSON.stringify(json)], { type: 'application/json' });
+  return URL.createObjectURL(blob);
+};
+
 /**
  * 3D model upload component with drag-and-drop support.
  * Accepts GLB and glTF file formats.
@@ -24,21 +57,49 @@ export function ModelUploader({
   const [isLoading, setIsLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const processFile = useCallback((file: File) => {
-    const extension = file.name.toLowerCase().slice(file.name.lastIndexOf('.'));
-    
-    if (!VALID_EXTENSIONS.includes(extension)) {
-      alert('Please select a GLB or glTF file');
+  const processFiles = useCallback(async (files: File[]) => {
+    if (files.length === 0) return;
+
+    // Find main model file
+    const glbFile = files.find(f => f.name.toLowerCase().endsWith('.glb'));
+    const gltfFile = files.find(f => f.name.toLowerCase().endsWith('.gltf'));
+
+    if (!glbFile && !gltfFile) {
+      alert('Please upload a .glb or .gltf file (drag related .bin/textures together for gltf)');
       return;
     }
 
     setIsLoading(true);
-    const url = URL.createObjectURL(file);
-    
-    setTimeout(() => {
-      onModelSelect(url, file.name);
+
+    try {
+      let url = '';
+      let name = '';
+
+      if (glbFile) {
+        // ... simple GLB case remains same
+        url = URL.createObjectURL(glbFile);
+        name = glbFile.name;
+      } else if (gltfFile) {
+        name = gltfFile.name;
+        // Create map of all uploaded files
+        const resourceMap = new Map<string, File>();
+        files.forEach(f => resourceMap.set(f.name, f));
+        
+        // Rewrite paths
+        url = await patchGltfContent(gltfFile, resourceMap);
+      }
+
+      // Small delay for UI feedback
+      setTimeout(() => {
+        onModelSelect(url, name);
+        setIsLoading(false);
+      }, 300);
+
+    } catch (error) {
+      console.error('Error processing model files:', error);
+      alert('Failed to process model files');
       setIsLoading(false);
-    }, 300);
+    }
   }, [onModelSelect]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
@@ -46,9 +107,9 @@ export function ModelUploader({
     e.stopPropagation();
     setIsDragOver(false);
 
-    const file = e.dataTransfer.files[0];
-    if (file) processFile(file);
-  }, [processFile]);
+    const files = Array.from(e.dataTransfer.files);
+    processFiles(files);
+  }, [processFiles]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -63,9 +124,12 @@ export function ModelUploader({
   }, []);
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) processFile(file);
-  }, [processFile]);
+    if (e.target.files) {
+      const files = Array.from(e.target.files);
+      processFiles(files);
+      e.target.value = ''; // Reset input to allow re-selection
+    }
+  }, [processFiles]);
 
   const handleClick = useCallback(() => {
     inputRef.current?.click();
@@ -99,7 +163,8 @@ export function ModelUploader({
         <input
           ref={inputRef}
           type="file"
-          accept=".glb,.gltf"
+          accept=".glb,.gltf,.bin,.png,.jpg,.jpeg"
+          multiple
           onChange={handleFileSelect}
           className="sr-only"
         />
@@ -141,12 +206,14 @@ export function ModelUploader({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
               </svg>
             </div>
-            <p className="text-sm text-surface-300 text-center">
-              {isDragOver ? 'Drop to upload' : 'Drag or click'}
-            </p>
-            <p className="text-xs text-surface-500 mt-1">
-              GLB or glTF files
-            </p>
+            <div className="text-center space-y-1">
+              <p className="text-sm text-surface-300">
+                {isDragOver ? 'Drop to upload' : 'Drop model files'}
+              </p>
+              <p className="text-[10px] text-surface-500">
+                GLB or GLTF (include .bin/textures)
+              </p>
+            </div>
           </>
         )}
       </div>
