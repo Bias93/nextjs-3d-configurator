@@ -167,12 +167,12 @@ export const ProductViewer = forwardRef<HTMLElement, ProductViewerProps>(({
         shadow-softness="0.8"
         tone-mapping="neutral"
 
-        // AR Configuration - Optimized for realism
+        // AR Configuration - WebXR only (scene-viewer can't handle blob URLs)
         ar
         ar-scale="fixed"
         ar-placement="floor"
         xr-environment
-        ar-modes="webxr scene-viewer quick-look"
+        ar-modes="webxr quick-look"
 
         style={{
           width: '100%',

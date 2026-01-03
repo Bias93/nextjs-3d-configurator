@@ -6,7 +6,6 @@ import {
   DrawerContent,
   DrawerHeader,
   DrawerTitle,
-  DrawerTrigger,
 } from '@/components/ui/drawer';
 import { ModelUploader } from '@/components/ModelUploader';
 import { TextureUploader } from '@/components/TextureUploader';
@@ -35,22 +34,31 @@ export function MobileDrawer({
 
   return (
     <div className="lg:hidden">
-      {/* Collapsed bar - always visible at bottom */}
+      {/* Floating Color Picker - Always visible when model loaded */}
+      {modelUrl && (
+        <div className="fixed bottom-20 left-4 right-20 z-40">
+          <div className="bg-surface-900/95 backdrop-blur-md rounded-xl border border-surface-700 p-3 shadow-xl">
+            <ColorPicker viewerRef={viewerRef} disabled={!modelUrl} />
+          </div>
+        </div>
+      )}
+
+      {/* FAB Trigger Button - Bottom right */}
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-0 inset-x-0 z-40 bg-surface-900 border-t border-surface-700 py-3 px-4"
+        className="fixed bottom-4 right-4 z-50 w-14 h-14 rounded-full bg-gradient-to-br from-accent-400 to-accent-600 shadow-lg shadow-accent-500/30 flex items-center justify-center active:scale-95 transition-transform"
+        aria-label="Open customization panel"
       >
-        <div className="w-12 h-1 bg-surface-600 rounded-full mx-auto mb-2" />
-        <span className="text-xs font-medium text-surface-400 uppercase tracking-widest">
-          Tap to customize
-        </span>
+        <svg className="w-6 h-6 text-surface-950" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+        </svg>
       </button>
 
       <Drawer open={isOpen} onOpenChange={setIsOpen}>
-        <DrawerContent className="bg-surface-900 border-surface-700 max-h-[85vh]">
+        <DrawerContent className="bg-surface-900 border-surface-700 max-h-[70vh]">
           <DrawerHeader className="pb-2">
             <DrawerTitle className="text-surface-300 text-sm font-medium text-center">
-              Customize
+              Upload Files
             </DrawerTitle>
           </DrawerHeader>
 
@@ -68,13 +76,6 @@ export function MobileDrawer({
                 onTextureSelect={onTextureSelect}
                 disabled={!modelUrl}
                 currentTexture={textureUrl}
-              />
-
-              <div className="h-px bg-gradient-to-r from-transparent via-surface-700 to-transparent" />
-
-              <ColorPicker
-                viewerRef={viewerRef}
-                disabled={!modelUrl}
               />
 
               {textureApplied && (

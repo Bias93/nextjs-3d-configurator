@@ -75,12 +75,12 @@ export function TextureUploader({
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         className={clsx(
-          'relative group cursor-pointer rounded-lg border-2 border-dashed transition-all duration-200',
+          'relative rounded-lg border-2 border-dashed transition-all duration-200',
           'flex flex-col items-center justify-center p-6 min-h-[140px]',
-          disabled && 'opacity-50 cursor-not-allowed',
-          isDragOver 
-            ? 'border-accent-500 bg-accent-500/10' 
-            : 'border-surface-700 bg-surface-900/50 hover:border-surface-500 hover:bg-surface-800/50'
+          disabled
+            ? 'opacity-50 cursor-not-allowed border-surface-700 bg-surface-900/50'
+            : 'group cursor-pointer border-surface-700 bg-surface-900/50 hover:border-surface-500 hover:bg-surface-800/50',
+          isDragOver && !disabled && 'border-accent-500 bg-accent-500/10'
         )}
         role="button"
         tabIndex={disabled ? -1 : 0}
