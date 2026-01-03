@@ -65,8 +65,8 @@ export function TextureUploader({
 
   return (
     <div className="space-y-3">
-      <label className="block text-xs font-medium text-surface-400 uppercase tracking-wider">
-        Custom Texture
+      <label className="block text-[10px] font-black text-surface-500 uppercase tracking-[0.2em]">
+        Texture
       </label>
 
       <div
@@ -79,7 +79,7 @@ export function TextureUploader({
           'flex flex-col items-center justify-center p-6 min-h-[140px]',
           disabled
             ? 'opacity-50 cursor-not-allowed border-surface-700 bg-surface-900/50'
-            : 'group cursor-pointer border-surface-700 bg-surface-900/50 hover:border-surface-500 hover:bg-surface-800/50',
+            : 'group/texture cursor-pointer border-surface-700 bg-surface-900/50 hover:border-surface-500 hover:bg-surface-800/50',
           isDragOver && !disabled && 'border-accent-500 bg-accent-500/10'
         )}
         role="button"
@@ -115,12 +115,12 @@ export function TextureUploader({
           <>
             <div className={clsx(
               'w-12 h-12 rounded-lg flex items-center justify-center mb-3 transition-colors',
-              isDragOver ? 'bg-accent-500/20' : 'bg-surface-800 group-hover:bg-surface-700'
+              isDragOver ? 'bg-accent-500/20' : 'bg-surface-800 group-hover/texture:bg-surface-700'
             )}>
               <svg 
                 className={clsx(
                   'w-6 h-6 transition-colors',
-                  isDragOver ? 'text-accent-400' : 'text-surface-400 group-hover:text-surface-300'
+                  isDragOver ? 'text-accent-400' : 'text-surface-400 group-hover/texture:text-surface-300'
                 )} 
                 fill="none" 
                 viewBox="0 0 24 24" 
