@@ -11,18 +11,50 @@ interface ModelUploaderProps {
 
 const VALID_EXTENSIONS = ['.glb', '.gltf'];
 
+interface PatchResult {
+  url: string;
+  missingResources: string[];
+}
+
 // Helper to patch GLTF with blob URLs for resources
-const patchGltfContent = async (gltfFile: File, resources: Map<string, File>): Promise<string> => {
+const patchGltfContent = async (gltfFile: File, resources: Map<string, File>): Promise<PatchResult> => {
   const text = await gltfFile.text();
   const json = JSON.parse(text);
+  const missing: string[] = [];
+
+  const getResource = (uri: string): File | undefined => {
+    // 1. Try exact matching
+    if (resources.has(uri)) return resources.get(uri);
+    
+    // 2. Try matching by filename (handling flattened structure)
+    // Handle both forward slash and backslash
+    const cleanUri = decodeURIComponent(uri);
+    const filename = cleanUri.split(/[/\\]/).pop();
+    
+    if (!filename) return undefined;
+
+    // 3. Try case-insensitive matching for filename
+    const lowerFilename = filename.toLowerCase();
+    for (const [key, value] of resources.entries()) {
+      if (key.toLowerCase() === lowerFilename) return value;
+      // Also check if the uploaded file ends with this filename
+      if (key.endsWith(filename)) return value;
+    }
+
+    return undefined;
+  };
 
   // Patch buffers
   if (json.buffers) {
     json.buffers.forEach((buffer: any) => {
       if (buffer.uri && !buffer.uri.startsWith('data:')) {
-        const file = resources.get(buffer.uri);
+        const file = getResource(buffer.uri);
         if (file) {
+          console.log(`[GLTF Patcher] Patched buffer: ${buffer.uri} -> ${file.name}`);
           buffer.uri = URL.createObjectURL(file);
+        } else {
+          console.warn(`[GLTF Patcher] Missing buffer: ${buffer.uri}`);
+          missing.push(buffer.uri);
         }
       }
     });
@@ -32,16 +64,68 @@ const patchGltfContent = async (gltfFile: File, resources: Map<string, File>): P
   if (json.images) {
     json.images.forEach((image: any) => {
       if (image.uri && !image.uri.startsWith('data:')) {
-        const file = resources.get(image.uri);
+        const file = getResource(image.uri);
         if (file) {
+          console.log(`[GLTF Patcher] Patched image: ${image.uri} -> ${file.name}`);
           image.uri = URL.createObjectURL(file);
+        } else {
+          console.warn(`[GLTF Patcher] Missing image: ${image.uri}`);
+          missing.push(image.uri);
         }
       }
     });
   }
 
-  const blob = new Blob([JSON.stringify(json)], { type: 'application/json' });
-  return URL.createObjectURL(blob);
+  // Workaround for KHR_materials_pbrSpecularGlossiness
+  if (json.materials) {
+    json.materials.forEach((material: any) => {
+      if (material.extensions && material.extensions.KHR_materials_pbrSpecularGlossiness) {
+        console.log(`[GLTF Patcher] Converting SpecularGlossiness material: ${material.name}`);
+        const specGloss = material.extensions.KHR_materials_pbrSpecularGlossiness;
+        
+        // Ensure standard PBR container exists
+        if (!material.pbrMetallicRoughness) {
+          material.pbrMetallicRoughness = {};
+        }
+
+        // Map diffuseTexture to baseColorTexture
+        if (specGloss.diffuseTexture) {
+          material.pbrMetallicRoughness.baseColorTexture = specGloss.diffuseTexture;
+          console.log(`  - Mapped diffuseTexture to baseColorTexture`);
+        }
+
+        // Map diffuseFactor to baseColorFactor if present
+        if (specGloss.diffuseFactor) {
+          material.pbrMetallicRoughness.baseColorFactor = specGloss.diffuseFactor;
+        }
+
+        // Set rough/metal values to resemble non-metal (common in spec/gloss usage)
+        if (material.pbrMetallicRoughness.roughnessFactor === undefined) {
+          material.pbrMetallicRoughness.roughnessFactor = 0.5;
+        }
+        if (material.pbrMetallicRoughness.metallicFactor === undefined) {
+          material.pbrMetallicRoughness.metallicFactor = 0.0;
+        }
+
+        // Remove the extension to prevent loader errors
+        delete material.extensions.KHR_materials_pbrSpecularGlossiness;
+      }
+    });
+
+    // Clean up top-level extensions list
+    if (json.extensionsRequired) {
+      json.extensionsRequired = json.extensionsRequired.filter((ext: string) => ext !== 'KHR_materials_pbrSpecularGlossiness');
+    }
+    if (json.extensionsUsed) {
+      json.extensionsUsed = json.extensionsUsed.filter((ext: string) => ext !== 'KHR_materials_pbrSpecularGlossiness');
+    }
+  }
+
+  const blob = new Blob([JSON.stringify(json)], { type: 'model/gltf+json' });
+  return {
+    url: URL.createObjectURL(blob),
+    missingResources: missing
+  };
 };
 
 /**
@@ -86,7 +170,13 @@ export function ModelUploader({
         files.forEach(f => resourceMap.set(f.name, f));
         
         // Rewrite paths
-        url = await patchGltfContent(gltfFile, resourceMap);
+        const result = await patchGltfContent(gltfFile, resourceMap);
+        url = result.url;
+
+        if (result.missingResources.length > 0) {
+          const missingFiles = result.missingResources.map(uri => uri.split('/').pop()).join(', ');
+          alert(`Warning: The following files were referenced but not found:\n${missingFiles}\n\nPlease ensure you dragged all texture/bin files together with the .gltf file.`);
+        }
       }
 
       // Small delay for UI feedback

@@ -77,6 +77,7 @@ export const ProductViewer = forwardRef<HTMLElement, ProductViewerProps>(({
     };
   }, [isModelViewerReady, modelSrc, onARStatusChange]);
 
+
   useEffect(() => {
     setIsLoaded(false);
   }, [modelSrc]);
