@@ -49,7 +49,8 @@ export default function ConfiguratorPage() {
   const [modelUrl, setModelUrl] = useState<string | null>(null);
   const [modelName, setModelName] = useState<string | null>(null);
   const [textures, setTextures] = useState<Record<string, string>>({});
-  const [isAutoRotating, setIsAutoRotating] = useState(true);
+  const [availableMaterials, setAvailableMaterials] = useState<string[]>([]);
+  const [isAutoRotating, setIsAutoRotating] = useState(false);
   const [textureApplied, setTextureApplied] = useState(false);
   const [isFocusMode, setIsFocusMode] = useState(false);
   
@@ -73,7 +74,13 @@ export default function ConfiguratorPage() {
     setModelName(fileName);
     setTextures({});
     setTextureApplied(false);
+    setAvailableMaterials([]);
   }, [modelUrl]);
+
+  const handleMaterialsLoaded = useCallback((materials: string[]) => {
+    setAvailableMaterials(materials);
+    console.log('Materials loaded:', materials);
+  }, []);
 
   const handleTextureSelect = useCallback((url: string, file: File, slotName: string) => {
     setTextures(prev => ({
@@ -137,8 +144,10 @@ export default function ConfiguratorPage() {
         modelUrl={modelUrl}
         modelName={modelName}
         textures={textures}
+        availableMaterials={availableMaterials}
         textureApplied={textureApplied}
         handleModelSelect={handleModelSelect}
+        handleMaterialsLoaded={handleMaterialsLoaded}
         handleTextureSelect={handleTextureSelect}
         handleTextureApplied={handleTextureApplied}
         handleARStatusChange={handleARStatusChange}
@@ -158,8 +167,8 @@ export default function ConfiguratorPage() {
 }
 
 function ConfiguratorContent({ 
-  modelUrl, modelName, textures, textureApplied, 
-  handleModelSelect, handleTextureSelect, handleTextureApplied,
+  modelUrl, modelName, textures, availableMaterials, textureApplied, 
+  handleModelSelect, handleMaterialsLoaded, handleTextureSelect, handleTextureApplied,
   handleARStatusChange, arStatus, isFocusMode, setIsFocusMode,
   isAutoRotating, handleScreenshot, handleReset,
   handleToggleAutoRotate, handleActivateAR, canAR, viewerRef
@@ -188,10 +197,10 @@ function ConfiguratorContent({
               </div>
               <div className="group-data-[collapsible=icon]:hidden overflow-hidden">
                 <h1 className="text-xl font-bold text-surface-500 tracking-tight leading-none mb-1 uppercase">
-                  Configurator
+                  3D Configurator
                 </h1>
                 <p className="text-[10px] text-accent-500 font-black uppercase tracking-[0.2em]">
-                  3D Texture Tool
+                  Custom Texture Tool
                 </p>
               </div>
             </div>
@@ -216,6 +225,7 @@ function ConfiguratorContent({
                   onTextureSelect={handleTextureSelect}
                   disabled={!modelUrl}
                   currentTextures={textures}
+                  availableMaterials={availableMaterials}
                 />
                 {textureApplied && (
                   <div className="flex items-center gap-2 mt-3 p-2.5 rounded-lg bg-success/10 border border-success/20 animate-in fade-in slide-in-from-top-1">
@@ -311,12 +321,13 @@ function ConfiguratorContent({
                   <ProductViewer
                     modelSrc={modelUrl as string}
                     onTextureApplied={handleTextureApplied}
+                    onMaterialsLoaded={handleMaterialsLoaded}
                     onARStatusChange={handleARStatusChange}
                   />
                 </>
               ) : (
                 <div className="flex flex-col items-center justify-center text-center p-12 max-w-md mx-auto animate-in fade-in zoom-in-95 duration-700">
-                  <div className="w-32 h-32 rounded-[2.5rem] bg-surface-900/50 backdrop-blur-3xl border border-surface-800/50 flex items-center justify-center mb-10 shadow-[0_0_50px_-12px_rgba(0,0,0,0.5)] lg:group-hover:scale-105 transition-transform">
+                  <div className="w-32 h-32 rounded-[2.5rem] bg-surface-900/50 backdrop-blur-3xl border border-surface-700/80 flex items-center justify-center mb-10 shadow-[0_0_50px_-12px_rgba(0,0,0,0.5)] lg:group-hover:scale-105 transition-transform">
                     <svg className="w-16 h-16 text-surface-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={0.75} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                     </svg>

@@ -1,12 +1,13 @@
 'use client';
 
-import { useCallback, useState, useRef } from 'react';
+import { useCallback, useState, useRef, useEffect, useMemo } from 'react';
 import { clsx } from 'clsx';
 
 interface TextureUploaderProps {
   onTextureSelect: (textureUrl: string, file: File, slotName: string) => void;
   disabled?: boolean;
   currentTextures?: Record<string, string>;
+  availableMaterials?: string[];
 }
 
 const TEXTURE_SLOTS = [
@@ -22,11 +23,40 @@ const TEXTURE_SLOTS = [
 export function TextureUploader({ 
   onTextureSelect, 
   disabled = false,
-  currentTextures 
+  currentTextures,
+  availableMaterials = []
 }: TextureUploaderProps) {
   const [isDragOver, setIsDragOver] = useState(false);
-  const [selectedSlot, setSelectedSlot] = useState('logo_1');
+  const [selectedSlot, setSelectedSlot] = useState<string>('logo_1');
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Smart Detection Logic
+  const mode = useMemo(() => {
+    if (availableMaterials.length === 0) return 'standard'; // Default/Loading
+    
+    // Check if any standard slot names exist in the model
+    // Standard names mapped from ProductViewer: logo, front, back, decals, etc.
+    const standardKeywords = ['logo', 'front', 'back', 'sleeve', 'decals'];
+    const hasStandardSlots = availableMaterials.some(mat => 
+      standardKeywords.some(kw => mat.toLowerCase().includes(kw))
+    );
+
+    return hasStandardSlots ? 'standard' : 'custom';
+  }, [availableMaterials]);
+
+  // Reset selection when mode changes or materials load
+  useEffect(() => {
+    if (mode === 'custom' && availableMaterials.length > 0) {
+      // Default to first material if current selection is not in list (or is a standard slot name)
+      if (!availableMaterials.includes(selectedSlot)) {
+        setSelectedSlot(availableMaterials[0]);
+      }
+    } else if (mode === 'standard') {
+       if (!TEXTURE_SLOTS.some(s => s.id === selectedSlot)) {
+         setSelectedSlot('logo_1');
+       }
+    }
+  }, [mode, availableMaterials, selectedSlot]);
 
   const processFile = useCallback((file: File) => {
     if (!file.type.startsWith('image/')) {
@@ -87,20 +117,38 @@ export function TextureUploader({
       </div>
 
       <div className="flex p-1 bg-surface-900/50 rounded-lg mb-3">
-        {TEXTURE_SLOTS.map((slot) => (
-          <button
-            key={slot.id}
-            onClick={() => setSelectedSlot(slot.id)}
-            className={clsx(
-              'flex-1 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all',
-              selectedSlot === slot.id
-                ? 'bg-surface-800 text-accent-400 shadow-sm'
-                : 'text-surface-500 hover:text-surface-300'
-            )}
-          >
-            {slot.label}
-          </button>
-        ))}
+        {mode === 'standard' ? (
+          TEXTURE_SLOTS.map((slot) => (
+            <button
+              key={slot.id}
+              onClick={() => setSelectedSlot(slot.id)}
+              className={clsx(
+                'flex-1 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all',
+                selectedSlot === slot.id
+                  ? 'bg-surface-800 text-accent-400 shadow-sm'
+                  : 'text-surface-500 hover:text-surface-300'
+              )}
+            >
+              {slot.label}
+            </button>
+          ))
+        ) : (
+          <div className="w-full px-2 py-1">
+             <label className="text-[9px] text-surface-500 uppercase font-bold px-1 mb-1 block">
+               Target Material
+             </label>
+             <select 
+               value={selectedSlot}
+               onChange={(e) => setSelectedSlot(e.target.value)}
+               className="w-full bg-surface-800 text-surface-200 text-xs rounded-md border-none p-2 focus:ring-1 focus:ring-accent-500"
+               disabled={disabled}
+             >
+               {availableMaterials.map(mat => (
+                 <option key={mat} value={mat}>{mat}</option>
+               ))}
+             </select>
+          </div>
+        )}
       </div>
 
       <div
@@ -110,7 +158,7 @@ export function TextureUploader({
         onDragLeave={handleDragLeave}
         className={clsx(
           'relative rounded-lg border-2 border-dashed transition-all duration-200',
-          'flex flex-col items-center justify-center p-6 min-h-[140px]',
+          'flex flex-col items-center justify-center min-h-[140px]',
           disabled
             ? 'opacity-50 cursor-not-allowed border-surface-700 bg-surface-900/50'
             : 'group/texture cursor-pointer border-surface-700 bg-surface-900/50 hover:border-surface-500 hover:bg-surface-800/50',
@@ -136,7 +184,7 @@ export function TextureUploader({
               alt="Texture preview"
               className="w-full h-full object-cover rounded-xl"
             />
-            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl flex items-center justify-center">
+            <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity rounded-xl flex items-center justify-center">
               <span className="text-[10px] font-bold text-white uppercase tracking-wider">Change Texture</span>
             </div>
           </div>

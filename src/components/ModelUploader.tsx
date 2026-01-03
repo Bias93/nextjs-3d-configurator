@@ -2,6 +2,7 @@
 
 import { useCallback, useState, useRef } from 'react';
 import { clsx } from 'clsx';
+import JSZip from 'jszip';
 
 interface ModelUploaderProps {
   onModelSelect: (modelUrl: string, fileName: string) => void;
@@ -144,6 +145,50 @@ export function ModelUploader({
   const processFiles = useCallback(async (files: File[]) => {
     if (files.length === 0) return;
 
+    // Check for ZIP file
+    const zipFile = files.find(f => f.name.toLowerCase().endsWith('.zip'));
+    if (zipFile) {
+      setIsLoading(true);
+      try {
+        const zip = new JSZip();
+        const zipContent = await zip.loadAsync(zipFile);
+        const extractedFiles: File[] = [];
+
+        console.log('📦 Extracting ZIP:', zipFile.name);
+
+        const extractionPromises: Promise<void>[] = [];
+
+        zipContent.forEach((relativePath, zipEntry) => {
+          if (!zipEntry.dir) {
+            const promise = zipEntry.async('blob').then(blob => {
+              // Create a file with the full relative path as name (to preserve some structure info if needed)
+              // But for our flattened logic, the basename usually suffices.
+              // We keep the basename for simple matching, or maybe the full path?
+              // The patcher uses `split('/').pop()`, so full path in name is fine.
+              const filename = relativePath.split('/').pop() || relativePath;
+              const file = new File([blob], filename, { type: blob.type });
+              extractedFiles.push(file);
+              console.log(`  - Extracted: ${filename}`);
+            });
+            extractionPromises.push(promise);
+          }
+        });
+
+        await Promise.all(extractionPromises);
+        
+        console.log(`✅ Extracted ${extractedFiles.length} files. Processing...`);
+        // Recursive call with extracted files
+        await processFiles(extractedFiles);
+        return; // Important: stop this execution path
+
+      } catch (error) {
+        console.error('Error extracting ZIP:', error);
+        alert('Failed to extract ZIP file');
+        setIsLoading(false);
+        return;
+      }
+    }
+
     // Find main model file
     const glbFile = files.find(f => f.name.toLowerCase().endsWith('.glb'));
     const gltfFile = files.find(f => f.name.toLowerCase().endsWith('.gltf'));
@@ -253,7 +298,7 @@ export function ModelUploader({
         <input
           ref={inputRef}
           type="file"
-          accept=".glb,.gltf,.bin,.png,.jpg,.jpeg"
+          accept=".glb,.gltf,.bin,.png,.jpg,.jpeg,.zip"
           multiple
           onChange={handleFileSelect}
           className="sr-only"
@@ -301,7 +346,7 @@ export function ModelUploader({
                 {isDragOver ? 'Drop to upload' : 'Drop model files'}
               </p>
               <p className="text-[10px] text-surface-500">
-                GLB or GLTF (include .bin/textures)
+                GLB, GLTF or ZIP archive
               </p>
             </div>
           </>

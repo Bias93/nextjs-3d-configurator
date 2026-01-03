@@ -7,6 +7,7 @@ interface ProductViewerProps {
   poster?: string;
   alt?: string;
   onTextureApplied?: () => void;
+  onMaterialsLoaded?: (materials: string[]) => void;
   onARStatusChange?: (status: 'not-presenting' | 'session-started' | 'object-placed' | 'failed') => void;
 }
 
@@ -15,6 +16,7 @@ export const ProductViewer = forwardRef<HTMLElement, ProductViewerProps>(({
   poster,
   alt = '3D Product Model',
   onTextureApplied,
+  onMaterialsLoaded,
   onARStatusChange
 }, ref) => {
   const localRef = useRef<ModelViewerElement | null>(null);
@@ -46,7 +48,15 @@ export const ProductViewer = forwardRef<HTMLElement, ProductViewerProps>(({
     const viewer = viewerRef.current;
     if (!viewer || !isModelViewerReady) return;
 
-    const handleLoad = () => setIsLoaded(true);
+    const handleLoad = () => {
+      setIsLoaded(true);
+      if (viewer.model) {
+        const materialNames = Array.from(viewer.model.materials)
+          .map((m: any) => m.name)
+          .filter(Boolean);
+        onMaterialsLoaded?.(materialNames);
+      }
+    };
     const handleError = (e: Event) => console.error('Model loading error:', e);
 
     // AR status events
@@ -67,6 +77,10 @@ export const ProductViewer = forwardRef<HTMLElement, ProductViewerProps>(({
 
     if (viewer.model) {
       setIsLoaded(true);
+      const materialNames = Array.from(viewer.model.materials)
+        .map((m: any) => m.name)
+        .filter(Boolean);
+      onMaterialsLoaded?.(materialNames);
     }
 
     return () => {
@@ -98,10 +112,10 @@ export const ProductViewer = forwardRef<HTMLElement, ProductViewerProps>(({
         'logo_3': ['logo.003', 'logo_3', 'logo_sleeve', 'decals_3']
       };
 
-      const targetNames = materialTargetMap[slotName] || [];
+      const targetNames = materialTargetMap[slotName] || [slotName];
 
       const targetMaterial = materials.find((m: Material) => 
-        targetNames.some(name => m.name.toLowerCase().includes(name))
+        targetNames.some(name => m.name.toLowerCase().includes(name.toLowerCase()))
       );
 
       if (!targetMaterial) {
@@ -164,9 +178,8 @@ export const ProductViewer = forwardRef<HTMLElement, ProductViewerProps>(({
         // Camera controls
         camera-controls
         touch-action="pan-y"
-        auto-rotate
         rotation-per-second="20deg"
-        camera-orbit="45deg 65deg 105%"
+        camera-orbit="180deg 90deg 105%"
         min-camera-orbit="auto auto 50%"
         max-camera-orbit="auto auto 200%"
         interaction-prompt="none"
