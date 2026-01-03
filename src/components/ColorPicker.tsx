@@ -177,8 +177,11 @@ export function ColorPicker({ viewerRef, disabled = false }: ColorPickerProps) {
       {!isLoading && (
         <>
           {materials.length > 1 && (
-            <div className="space-y-3">
-              <span className="block text-[10px] font-black text-surface-400 uppercase tracking-[0.2em]">Choose Part</span>
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 px-1">
+                <div className="w-1 h-1 rounded-full bg-accent-500/50" />
+                <span className="block text-[10px] font-bold text-surface-400 uppercase tracking-[0.2em]">Select Material Section</span>
+              </div>
               <div className="flex flex-wrap gap-2">
                 {materials.map((mat) => (
                   <button
@@ -200,10 +203,13 @@ export function ColorPicker({ viewerRef, disabled = false }: ColorPickerProps) {
           )}
 
           <div className="space-y-3 pt-4">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-black text-surface-400 uppercase tracking-[0.2em]">
-                {selectedMaterial ? 'Select Finish' : 'Select a part first'}
-              </span>
+            <div className="flex items-center justify-between px-1">
+              <div className="flex items-center gap-2">
+                <div className="w-1 h-1 rounded-full bg-accent-500/50" />
+                <span className="text-[10px] font-bold text-surface-400 uppercase tracking-[0.2em]">
+                  {selectedMaterial ? 'Choose Finish' : 'Pick a Section'}
+                </span>
+              </div>
               {currentMaterial && (
                 <div 
                   className="w-4 h-4 rounded-full border border-surface-600 shadow-inner"
@@ -242,7 +248,7 @@ export function ColorPicker({ viewerRef, disabled = false }: ColorPickerProps) {
                     aria-label="Custom color picker"
                   />
                 </div>
-                <span className="text-[11px] font-medium text-surface-500 group-hover/color-picker:text-surface-300 transition-colors">Custom Color</span>
+                <span className="text-[10px] font-bold text-surface-500 group-hover/color-picker:text-surface-300 transition-colors uppercase tracking-[0.1em]">Custom Picker</span>
               </label>
             </div>
           </div>

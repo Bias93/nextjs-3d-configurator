@@ -222,7 +222,7 @@ function ConfiguratorContent({
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                       </svg>
                     </div>
-                    <span className="text-[11px] font-medium text-success">Texture Applied</span>
+                    <span className="text-[9px] font-black text-success uppercase tracking-[0.1em]">Texture Applied</span>
                   </div>
                 )}
               </SidebarGroupContent>
@@ -241,9 +241,12 @@ function ConfiguratorContent({
 
           <SidebarFooter className="p-8 border-t border-surface-800 shrink-0">
             <div className="mb-8">
-              <h3 className="text-[10px] font-black text-surface-500 uppercase tracking-[0.2em] mb-4 px-2">
-                Interaction Guide
-              </h3>
+              <div className="flex items-center gap-2 mb-4 px-2">
+                <div className="w-1 h-1 rounded-full bg-accent-500/50" />
+                <h3 className="text-[10px] font-bold text-surface-400 uppercase tracking-[0.2em]">
+                  Control Guide
+                </h3>
+              </div>
               <div className="grid grid-cols-3 gap-2">
                 <div className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-surface-950/50 border border-surface-800 group-data-[collapsible=icon]:hidden">
                   <div className="text-xl">🖱️</div>

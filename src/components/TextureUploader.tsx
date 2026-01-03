@@ -65,9 +65,12 @@ export function TextureUploader({
 
   return (
     <div className="space-y-3">
-      <label className="block text-[10px] font-black text-surface-500 uppercase tracking-[0.2em]">
-        Texture
-      </label>
+      <div className="flex items-center gap-2 mb-3 px-1">
+        <div className="w-1 h-1 rounded-full bg-accent-500/50" />
+        <label className="text-[10px] font-bold text-surface-400 uppercase tracking-[0.2em]">
+          Texture Appearance
+        </label>
+      </div>
 
       <div
         onClick={handleClick}
