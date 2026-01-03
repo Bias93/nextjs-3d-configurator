@@ -34,7 +34,6 @@ export function MobileDrawer({
 
   return (
     <div className="lg:hidden">
-      {/* FAB Trigger Button - Enhanced with glassmorphism */}
       <button
         onClick={() => setIsOpen(true)}
         className="fixed bottom-4 right-4 z-50 w-14 h-14 rounded-full glass-accent shadow-2xl flex items-center justify-center active:scale-90 transition-all duration-300"

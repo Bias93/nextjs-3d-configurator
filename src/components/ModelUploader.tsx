@@ -17,35 +17,31 @@ interface PatchResult {
   missingResources: string[];
 }
 
-// Helper to patch GLTF with blob URLs for resources
+
 const patchGltfContent = async (gltfFile: File, resources: Map<string, File>): Promise<PatchResult> => {
   const text = await gltfFile.text();
   const json = JSON.parse(text);
   const missing: string[] = [];
 
   const getResource = (uri: string): File | undefined => {
-    // 1. Try exact matching
     if (resources.has(uri)) return resources.get(uri);
     
-    // 2. Try matching by filename (handling flattened structure)
-    // Handle both forward slash and backslash
+
     const cleanUri = decodeURIComponent(uri);
     const filename = cleanUri.split(/[/\\]/).pop();
     
     if (!filename) return undefined;
 
-    // 3. Try case-insensitive matching for filename
     const lowerFilename = filename.toLowerCase();
     for (const [key, value] of resources.entries()) {
       if (key.toLowerCase() === lowerFilename) return value;
-      // Also check if the uploaded file ends with this filename
       if (key.endsWith(filename)) return value;
     }
 
     return undefined;
   };
 
-  // Patch buffers
+
   if (json.buffers) {
     json.buffers.forEach((buffer: any) => {
       if (buffer.uri && !buffer.uri.startsWith('data:')) {
@@ -61,7 +57,7 @@ const patchGltfContent = async (gltfFile: File, resources: Map<string, File>): P
     });
   }
 
-  // Patch images
+
   if (json.images) {
     json.images.forEach((image: any) => {
       if (image.uri && !image.uri.startsWith('data:')) {
@@ -84,23 +80,20 @@ const patchGltfContent = async (gltfFile: File, resources: Map<string, File>): P
         console.log(`[GLTF Patcher] Converting SpecularGlossiness material: ${material.name}`);
         const specGloss = material.extensions.KHR_materials_pbrSpecularGlossiness;
         
-        // Ensure standard PBR container exists
         if (!material.pbrMetallicRoughness) {
           material.pbrMetallicRoughness = {};
         }
 
-        // Map diffuseTexture to baseColorTexture
+
         if (specGloss.diffuseTexture) {
           material.pbrMetallicRoughness.baseColorTexture = specGloss.diffuseTexture;
           console.log(`  - Mapped diffuseTexture to baseColorTexture`);
         }
 
-        // Map diffuseFactor to baseColorFactor if present
         if (specGloss.diffuseFactor) {
           material.pbrMetallicRoughness.baseColorFactor = specGloss.diffuseFactor;
         }
 
-        // Set rough/metal values to resemble non-metal (common in spec/gloss usage)
         if (material.pbrMetallicRoughness.roughnessFactor === undefined) {
           material.pbrMetallicRoughness.roughnessFactor = 0.5;
         }
@@ -108,12 +101,10 @@ const patchGltfContent = async (gltfFile: File, resources: Map<string, File>): P
           material.pbrMetallicRoughness.metallicFactor = 0.0;
         }
 
-        // Remove the extension to prevent loader errors
         delete material.extensions.KHR_materials_pbrSpecularGlossiness;
       }
     });
 
-    // Clean up top-level extensions list
     if (json.extensionsRequired) {
       json.extensionsRequired = json.extensionsRequired.filter((ext: string) => ext !== 'KHR_materials_pbrSpecularGlossiness');
     }
@@ -145,7 +136,6 @@ export function ModelUploader({
   const processFiles = useCallback(async (files: File[]) => {
     if (files.length === 0) return;
 
-    // Check for ZIP file
     const zipFile = files.find(f => f.name.toLowerCase().endsWith('.zip'));
     if (zipFile) {
       setIsLoading(true);
@@ -161,10 +151,6 @@ export function ModelUploader({
         zipContent.forEach((relativePath, zipEntry) => {
           if (!zipEntry.dir) {
             const promise = zipEntry.async('blob').then(blob => {
-              // Create a file with the full relative path as name (to preserve some structure info if needed)
-              // But for our flattened logic, the basename usually suffices.
-              // We keep the basename for simple matching, or maybe the full path?
-              // The patcher uses `split('/').pop()`, so full path in name is fine.
               const filename = relativePath.split('/').pop() || relativePath;
               const file = new File([blob], filename, { type: blob.type });
               extractedFiles.push(file);
@@ -176,10 +162,9 @@ export function ModelUploader({
 
         await Promise.all(extractionPromises);
         
-        console.log(`✅ Extracted ${extractedFiles.length} files. Processing...`);
-        // Recursive call with extracted files
+
         await processFiles(extractedFiles);
-        return; // Important: stop this execution path
+        return;
 
       } catch (error) {
         console.error('Error extracting ZIP:', error);
@@ -189,7 +174,6 @@ export function ModelUploader({
       }
     }
 
-    // Find main model file
     const glbFile = files.find(f => f.name.toLowerCase().endsWith('.glb'));
     const gltfFile = files.find(f => f.name.toLowerCase().endsWith('.gltf'));
 
@@ -205,16 +189,15 @@ export function ModelUploader({
       let name = '';
 
       if (glbFile) {
-        // ... simple GLB case remains same
+
         url = URL.createObjectURL(glbFile);
         name = glbFile.name;
       } else if (gltfFile) {
         name = gltfFile.name;
-        // Create map of all uploaded files
+
         const resourceMap = new Map<string, File>();
         files.forEach(f => resourceMap.set(f.name, f));
         
-        // Rewrite paths
         const result = await patchGltfContent(gltfFile, resourceMap);
         url = result.url;
 
@@ -224,7 +207,7 @@ export function ModelUploader({
         }
       }
 
-      // Small delay for UI feedback
+
       setTimeout(() => {
         onModelSelect(url, name);
         setIsLoading(false);
@@ -262,7 +245,7 @@ export function ModelUploader({
     if (e.target.files) {
       const files = Array.from(e.target.files);
       processFiles(files);
-      e.target.value = ''; // Reset input to allow re-selection
+      e.target.value = '';
     }
   }, [processFiles]);
 

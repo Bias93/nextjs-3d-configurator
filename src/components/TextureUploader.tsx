@@ -30,12 +30,9 @@ export function TextureUploader({
   const [selectedSlot, setSelectedSlot] = useState<string>('logo_1');
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Smart Detection Logic
   const mode = useMemo(() => {
-    if (availableMaterials.length === 0) return 'standard'; // Default/Loading
+    if (availableMaterials.length === 0) return 'standard';
     
-    // Check if any standard slot names exist in the model
-    // Standard names mapped from ProductViewer: logo, front, back, decals, etc.
     const standardKeywords = ['logo', 'front', 'back', 'sleeve', 'decals'];
     const hasStandardSlots = availableMaterials.some(mat => 
       standardKeywords.some(kw => mat.toLowerCase().includes(kw))
@@ -44,10 +41,8 @@ export function TextureUploader({
     return hasStandardSlots ? 'standard' : 'custom';
   }, [availableMaterials]);
 
-  // Reset selection when mode changes or materials load
   useEffect(() => {
     if (mode === 'custom' && availableMaterials.length > 0) {
-      // Default to first material if current selection is not in list (or is a standard slot name)
       if (!availableMaterials.includes(selectedSlot)) {
         setSelectedSlot(availableMaterials[0]);
       }
@@ -95,7 +90,6 @@ export function TextureUploader({
     const file = e.target.files?.[0];
     if (file) {
       processFile(file);
-      // Reset input value to allow selecting the same file again
       e.target.value = '';
     }
   }, [processFile]);
@@ -104,7 +98,7 @@ export function TextureUploader({
     if (!disabled) inputRef.current?.click();
   }, [disabled]);
 
-  // Determine the texture for the currently selected slot
+
   const currentSlotTexture = currentTextures ? currentTextures[selectedSlot] : null;
 
   return (

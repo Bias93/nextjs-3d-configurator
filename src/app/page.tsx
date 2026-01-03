@@ -34,7 +34,6 @@ const ProductViewer = dynamic(
   }
 );
 
-// Dynamically import MobileDrawer to avoid SSR hydration issues with Vaul Portal
 const MobileDrawer = dynamic(
   () => import('@/components/MobileDrawer').then(mod => ({ default: mod.MobileDrawer })),
   { ssr: false }
@@ -42,8 +41,6 @@ const MobileDrawer = dynamic(
 
 /**
  * Main 3D product configurator page.
- * Provides UI for uploading models, applying textures, and customizing colors.
- * Optimized with Shadcn Sidebar and fixed-centered canvas layout.
  */
 export default function ConfiguratorPage() {
   const [modelUrl, setModelUrl] = useState<string | null>(null);
@@ -58,7 +55,7 @@ export default function ConfiguratorPage() {
   const [canAR, setCanAR] = useState(false);
   const [arStatus, setArStatus] = useState<string>('not-presenting');
 
-  // Check AR availability after hydration
+
   useEffect(() => {
     const checkAR = () => {
       const isARCapable = 'xr' in navigator || 
@@ -283,7 +280,7 @@ function ConfiguratorContent({
         {/* Main Layout Area */}
         <SidebarInset className="relative flex-1 overflow-hidden bg-surface-950">
           
-          {/* Controls Overlay - UI elements that float over the fixed canvas */}
+          {/* Controls Overlay */}
           {!isFocusMode && (
             <div className="absolute top-6 left-6 z-50 hidden lg:block">
               <SidebarTrigger className="w-11 h-11 rounded-xl glass hover:glass-accent text-surface-300 hover:text-white transition-all duration-300 shadow-2xl flex items-center justify-center border-surface-700/50" />

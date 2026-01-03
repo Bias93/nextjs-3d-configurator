@@ -27,7 +27,7 @@ export const ProductViewer = forwardRef<HTMLElement, ProductViewerProps>(({
   const [arStatus, setArStatus] = useState<string>('not-presenting');
   const [arTracking, setArTracking] = useState<string>('not-tracking');
 
-  // Load model-viewer script
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -43,7 +43,7 @@ export const ProductViewer = forwardRef<HTMLElement, ProductViewerProps>(({
     document.head.appendChild(script);
   }, []);
 
-  // Setup model-viewer events
+
   useEffect(() => {
     const viewer = viewerRef.current;
     if (!viewer || !isModelViewerReady) return;
@@ -59,7 +59,7 @@ export const ProductViewer = forwardRef<HTMLElement, ProductViewerProps>(({
     };
     const handleError = (e: Event) => console.error('Model loading error:', e);
 
-    // AR status events
+
     const handleARStatus = (e: CustomEvent) => {
       const status = e.detail.status;
       setArStatus(status);
@@ -104,8 +104,6 @@ export const ProductViewer = forwardRef<HTMLElement, ProductViewerProps>(({
       const newTexture = await viewer.createTexture(textureUrl);
       const materials = viewer.model.materials;
 
-      // Map slot names to potential material names in the GLB
-      // Map slot names to potential material names in the GLB
       const materialTargetMap: Record<string, string[]> = {
         'logo_1': ['logo.001', 'logo_1', 'logo_front', 'decals_1'],
         'logo_2': ['logo.002', 'logo_2', 'logo_back', 'decals_2'],
@@ -155,7 +153,7 @@ export const ProductViewer = forwardRef<HTMLElement, ProductViewerProps>(({
     );
   }
 
-  // Check if AR is active and not yet tracking
+
   const showARPrompt = arStatus === 'session-started' && arTracking === 'not-tracking';
 
   return (
@@ -175,7 +173,7 @@ export const ProductViewer = forwardRef<HTMLElement, ProductViewerProps>(({
         poster={poster}
         alt={alt}
 
-        // Camera controls
+
         camera-controls
         touch-action="pan-y"
         rotation-per-second="20deg"
@@ -184,13 +182,13 @@ export const ProductViewer = forwardRef<HTMLElement, ProductViewerProps>(({
         max-camera-orbit="auto auto 200%"
         interaction-prompt="none"
 
-        // Lighting - Optimized
+
         exposure="1"
         shadow-intensity="1"
         shadow-softness="0.8"
         tone-mapping="neutral"
 
-        // AR Configuration - WebXR only (scene-viewer can't handle blob URLs)
+
         ar
         ar-scale="fixed"
         ar-placement="floor"
@@ -205,7 +203,7 @@ export const ProductViewer = forwardRef<HTMLElement, ProductViewerProps>(({
       >
       </model-viewer>
 
-      {/* AR Prompt Overlay - Shows during AR calibration (outside model-viewer) */}
+      {/* AR Prompt Overlay */}
       {showARPrompt && (
         <div className="ar-prompt">
           <div className="ar-prompt-content">

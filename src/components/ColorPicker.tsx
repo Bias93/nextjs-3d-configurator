@@ -104,7 +104,6 @@ export function ColorPicker({ viewerRef, disabled = false }: ColorPickerProps) {
     if (viewer) {
       attachListeners(viewer);
     } else {
-      // If viewer not found, watch for it
       observer = new MutationObserver((mutations) => {
         for (const mutation of mutations) {
           if (mutation.type === 'childList') {
