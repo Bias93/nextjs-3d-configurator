@@ -180,8 +180,11 @@ export const ProductViewer = forwardRef<HTMLElement, ProductViewerProps>(({
           backgroundColor: 'transparent',
         }}
       >
-        {/* AR Prompt Overlay - Shows during AR calibration */}
-        <div className="ar-prompt" slot="ar-prompt">
+      </model-viewer>
+
+      {/* AR Prompt Overlay - Shows during AR calibration (outside model-viewer) */}
+      {showARPrompt && (
+        <div className="ar-prompt">
           <div className="ar-prompt-content">
             <div className="ar-prompt-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -191,7 +194,7 @@ export const ProductViewer = forwardRef<HTMLElement, ProductViewerProps>(({
             <p className="ar-prompt-text">Move your phone to find a surface</p>
           </div>
         </div>
-      </model-viewer>
+      )}
     </div>
   );
 });
