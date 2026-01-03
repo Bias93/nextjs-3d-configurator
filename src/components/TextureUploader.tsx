@@ -4,10 +4,16 @@ import { useCallback, useState, useRef } from 'react';
 import { clsx } from 'clsx';
 
 interface TextureUploaderProps {
-  onTextureSelect: (textureUrl: string, file: File) => void;
+  onTextureSelect: (textureUrl: string, file: File, slotName: string) => void;
   disabled?: boolean;
-  currentTexture?: string | null;
+  currentTextures?: Record<string, string>;
 }
+
+const TEXTURE_SLOTS = [
+  { id: 'logo_1', label: 'Logo 1' },
+  { id: 'logo_2', label: 'Logo 2' },
+  { id: 'logo_3', label: 'Logo 3' },
+];
 
 /**
  * Texture upload component with drag-and-drop support.
@@ -16,9 +22,10 @@ interface TextureUploaderProps {
 export function TextureUploader({ 
   onTextureSelect, 
   disabled = false,
-  currentTexture 
+  currentTextures 
 }: TextureUploaderProps) {
   const [isDragOver, setIsDragOver] = useState(false);
+  const [selectedSlot, setSelectedSlot] = useState('logo_1');
   const inputRef = useRef<HTMLInputElement>(null);
 
   const processFile = useCallback((file: File) => {
@@ -28,8 +35,8 @@ export function TextureUploader({
     }
 
     const url = URL.createObjectURL(file);
-    onTextureSelect(url, file);
-  }, [onTextureSelect]);
+    onTextureSelect(url, file, selectedSlot);
+  }, [onTextureSelect, selectedSlot]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -56,12 +63,19 @@ export function TextureUploader({
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) processFile(file);
+    if (file) {
+      processFile(file);
+      // Reset input value to allow selecting the same file again
+      e.target.value = '';
+    }
   }, [processFile]);
 
   const handleClick = useCallback(() => {
     if (!disabled) inputRef.current?.click();
   }, [disabled]);
+
+  // Determine the texture for the currently selected slot
+  const currentSlotTexture = currentTextures ? currentTextures[selectedSlot] : null;
 
   return (
     <div className="space-y-3">
@@ -70,6 +84,23 @@ export function TextureUploader({
         <label className="text-[10px] font-bold text-surface-400 uppercase tracking-[0.2em]">
           Texture Appearance
         </label>
+      </div>
+
+      <div className="flex p-1 bg-surface-900/50 rounded-lg mb-3">
+        {TEXTURE_SLOTS.map((slot) => (
+          <button
+            key={slot.id}
+            onClick={() => setSelectedSlot(slot.id)}
+            className={clsx(
+              'flex-1 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all',
+              selectedSlot === slot.id
+                ? 'bg-surface-800 text-accent-400 shadow-sm'
+                : 'text-surface-500 hover:text-surface-300'
+            )}
+          >
+            {slot.label}
+          </button>
+        ))}
       </div>
 
       <div
@@ -98,21 +129,16 @@ export function TextureUploader({
           className="sr-only"
         />
 
-        {currentTexture ? (
-          <div className="flex flex-col items-center gap-3">
-            <div className="relative">
-              <img 
-                src={currentTexture} 
-                alt="Selected texture"
-                className="w-20 h-20 object-cover rounded-md ring-2 ring-accent-500/50"
-              />
-              <div className="absolute -top-1 -right-1 w-5 h-5 bg-success rounded-full flex items-center justify-center">
-                <svg className="w-3 h-3 text-surface-950" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
+        {currentSlotTexture ? (
+          <div className="relative group w-full h-full">
+            <img
+              src={currentSlotTexture}
+              alt="Texture preview"
+              className="w-full h-full object-cover rounded-xl"
+            />
+            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl flex items-center justify-center">
+              <span className="text-[10px] font-bold text-white uppercase tracking-wider">Change Texture</span>
             </div>
-            <span className="text-xs text-surface-400">Click to change</span>
           </div>
         ) : (
           <>

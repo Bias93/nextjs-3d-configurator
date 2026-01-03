@@ -248,7 +248,7 @@ export function ColorPicker({ viewerRef, disabled = false }: ColorPickerProps) {
                     aria-label="Custom color picker"
                   />
                 </div>
-                <span className="text-[10px] font-bold text-surface-500 group-hover/color-picker:text-surface-300 transition-colors uppercase tracking-[0.1em]">Custom Picker</span>
+                <span className="text-[10px] font-bold text-surface-500 group-hover/color-picker:text-surface-300 transition-colors uppercase tracking-widest">Custom Picker</span>
               </label>
             </div>
           </div>

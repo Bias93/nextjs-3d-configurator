@@ -81,7 +81,7 @@ export const ProductViewer = forwardRef<HTMLElement, ProductViewerProps>(({
     setIsLoaded(false);
   }, [modelSrc]);
 
-  const applyTexture = useCallback(async (textureUrl: string) => {
+  const applyTexture = useCallback(async (textureUrl: string, slotName: string = 'logo_1') => {
     const viewer = viewerRef.current as ModelViewerElement | null;
     if (!viewer?.model) return;
 
@@ -89,23 +89,32 @@ export const ProductViewer = forwardRef<HTMLElement, ProductViewerProps>(({
       const newTexture = await viewer.createTexture(textureUrl);
       const materials = viewer.model.materials;
 
-      const targetMaterial = materials.find((m: Material) =>
-        m.name.toLowerCase().includes('telaio') ||
-        m.name.toLowerCase().includes('custom') ||
-        m.name.toLowerCase().includes('frame')
+      // Map slot names to potential material names in the GLB
+      // Map slot names to potential material names in the GLB
+      const materialTargetMap: Record<string, string[]> = {
+        'logo_1': ['logo.001', 'logo_1', 'logo_front', 'decals_1'],
+        'logo_2': ['logo.002', 'logo_2', 'logo_back', 'decals_2'],
+        'logo_3': ['logo.003', 'logo_3', 'logo_sleeve', 'decals_3']
+      };
+
+      const targetNames = materialTargetMap[slotName] || [];
+
+      const targetMaterial = materials.find((m: Material) => 
+        targetNames.some(name => m.name.toLowerCase().includes(name))
       );
 
-      const materialsToUpdate = targetMaterial ? [targetMaterial] : materials;
+      if (!targetMaterial) {
+        console.warn(`No material found for slot: ${slotName}`);
+        return;
+      }
 
-      for (const material of materialsToUpdate) {
-        if (material.pbrMetallicRoughness.setBaseColorTexture) {
-          material.pbrMetallicRoughness.setBaseColorTexture(newTexture);
-          if (material.pbrMetallicRoughness.setBaseColorFactor) {
-            material.pbrMetallicRoughness.setBaseColorFactor([1, 1, 1, 1]);
-          }
-        } else if (material.pbrMetallicRoughness.baseColorTexture) {
-          (material.pbrMetallicRoughness.baseColorTexture as any).setTexture(newTexture);
+      if (targetMaterial.pbrMetallicRoughness.setBaseColorTexture) {
+        targetMaterial.pbrMetallicRoughness.setBaseColorTexture(newTexture);
+        if (targetMaterial.pbrMetallicRoughness.setBaseColorFactor) {
+          targetMaterial.pbrMetallicRoughness.setBaseColorFactor([1, 1, 1, 1]);
         }
+      } else if (targetMaterial.pbrMetallicRoughness.baseColorTexture) {
+        (targetMaterial.pbrMetallicRoughness.baseColorTexture as any).setTexture(newTexture);
       }
 
       onTextureApplied?.();

@@ -48,7 +48,7 @@ const MobileDrawer = dynamic(
 export default function ConfiguratorPage() {
   const [modelUrl, setModelUrl] = useState<string | null>(null);
   const [modelName, setModelName] = useState<string | null>(null);
-  const [textureUrl, setTextureUrl] = useState<string | null>(null);
+  const [textures, setTextures] = useState<Record<string, string>>({});
   const [isAutoRotating, setIsAutoRotating] = useState(true);
   const [textureApplied, setTextureApplied] = useState(false);
   const [isFocusMode, setIsFocusMode] = useState(false);
@@ -71,19 +71,21 @@ export default function ConfiguratorPage() {
     if (modelUrl) URL.revokeObjectURL(modelUrl);
     setModelUrl(url);
     setModelName(fileName);
-    setTextureUrl(null);
+    setTextures({});
     setTextureApplied(false);
   }, [modelUrl]);
 
-  const handleTextureSelect = useCallback((url: string) => {
-    if (textureUrl) URL.revokeObjectURL(textureUrl);
-    setTextureUrl(url);
+  const handleTextureSelect = useCallback((url: string, file: File, slotName: string) => {
+    setTextures(prev => ({
+      ...prev,
+      [slotName]: url
+    }));
     
     const viewer = viewerRef.current?.querySelector('model-viewer') as any;
     if (viewer?.applyCustomTexture) {
-      viewer.applyCustomTexture(url);
+      viewer.applyCustomTexture(url, slotName);
     }
-  }, [textureUrl]);
+  }, []);
 
   const handleTextureApplied = useCallback(() => {
     setTextureApplied(true);
@@ -134,7 +136,7 @@ export default function ConfiguratorPage() {
       <ConfiguratorContent 
         modelUrl={modelUrl}
         modelName={modelName}
-        textureUrl={textureUrl}
+        textures={textures}
         textureApplied={textureApplied}
         handleModelSelect={handleModelSelect}
         handleTextureSelect={handleTextureSelect}
@@ -156,7 +158,7 @@ export default function ConfiguratorPage() {
 }
 
 function ConfiguratorContent({ 
-  modelUrl, modelName, textureUrl, textureApplied, 
+  modelUrl, modelName, textures, textureApplied, 
   handleModelSelect, handleTextureSelect, handleTextureApplied,
   handleARStatusChange, arStatus, isFocusMode, setIsFocusMode,
   isAutoRotating, handleScreenshot, handleReset,
@@ -166,7 +168,7 @@ function ConfiguratorContent({
   const isCollapsed = state === "collapsed";
 
   return (
-    <div className="flex min-h-[100svh] w-full bg-surface-950 overflow-hidden">
+    <div className="flex min-h-svh w-full bg-surface-950 overflow-hidden">
         
         {/* Animated Sidebar - Desktop only */}
         <Sidebar 
@@ -206,14 +208,14 @@ function ConfiguratorContent({
               </SidebarGroupContent>
             </SidebarGroup>
 
-            <div className="h-[1px] w-full shrink-0 bg-linear-to-r from-transparent via-surface-700 to-transparent" />
+            <div className="h-px w-full shrink-0 bg-linear-to-r from-transparent via-surface-700 to-transparent" />
 
             <SidebarGroup className="p-0">
               <SidebarGroupContent className="px-2">
                 <TextureUploader 
                   onTextureSelect={handleTextureSelect}
                   disabled={!modelUrl}
-                  currentTexture={textureUrl}
+                  currentTextures={textures}
                 />
                 {textureApplied && (
                   <div className="flex items-center gap-2 mt-3 p-2.5 rounded-lg bg-success/10 border border-success/20 animate-in fade-in slide-in-from-top-1">
@@ -222,13 +224,13 @@ function ConfiguratorContent({
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                       </svg>
                     </div>
-                    <span className="text-[9px] font-black text-success uppercase tracking-[0.1em]">Texture Applied</span>
+                    <span className="text-[9px] font-black text-success uppercase tracking-widest">Texture Applied</span>
                   </div>
                 )}
               </SidebarGroupContent>
             </SidebarGroup>
 
-            <div className="h-[1px] w-full shrink-0 bg-linear-to-r from-transparent via-surface-700 to-transparent" />
+            <div className="h-px w-full shrink-0 bg-linear-to-r from-transparent via-surface-700 to-transparent" />
             <SidebarGroup className="p-0">
               <SidebarGroupContent className="px-2">
                 <ColorPicker 
@@ -281,7 +283,7 @@ function ConfiguratorContent({
           {/* Fixed & Centered Canvas Container */}
           <div className={clsx(
             "fixed inset-0 flex items-center justify-center z-0 transition-[padding] duration-500 pointer-events-none",
-            !isFocusMode && !isCollapsed ? "lg:pl-[var(--sidebar-width)]" : "lg:pl-0"
+            !isFocusMode && !isCollapsed ? "lg:pl-(--sidebar-width)" : "lg:pl-0"
           )}>
             
             {/* Background Grid & Gradient */}
@@ -369,7 +371,7 @@ function ConfiguratorContent({
           <MobileDrawer
             modelUrl={modelUrl}
             modelName={modelName}
-            textureUrl={textureUrl}
+            textures={textures}
             textureApplied={textureApplied}
             onModelSelect={handleModelSelect}
             onTextureSelect={handleTextureSelect}

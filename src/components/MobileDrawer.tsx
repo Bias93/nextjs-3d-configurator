@@ -14,17 +14,17 @@ import { ColorPicker } from '@/components/ColorPicker';
 interface MobileDrawerProps {
   modelUrl: string | null;
   modelName: string | null;
-  textureUrl: string | null;
+  textures: Record<string, string>;
   textureApplied: boolean;
   onModelSelect: (url: string, fileName: string) => void;
-  onTextureSelect: (url: string) => void;
+  onTextureSelect: (url: string, file: File, slotName: string) => void;
   viewerRef: RefObject<HTMLDivElement | null>;
 }
 
 export function MobileDrawer({
   modelUrl,
   modelName,
-  textureUrl,
+  textures,
   textureApplied,
   onModelSelect,
   onTextureSelect,
@@ -73,7 +73,7 @@ export function MobileDrawer({
                   <TextureUploader
                     onTextureSelect={onTextureSelect}
                     disabled={!modelUrl}
-                    currentTexture={textureUrl}
+                    currentTextures={textures}
                   />
 
                   {textureApplied && (
