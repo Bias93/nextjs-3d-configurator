@@ -1,13 +1,20 @@
 'use client';
 
-import { useCallback, useState, useRef } from 'react';
+import { useCallback, useState, useRef, useEffect, useMemo } from 'react';
 import { clsx } from 'clsx';
 
 interface TextureUploaderProps {
-  onTextureSelect: (textureUrl: string, file: File) => void;
+  onTextureSelect: (textureUrl: string, file: File, slotName: string) => void;
   disabled?: boolean;
-  currentTexture?: string | null;
+  currentTextures?: Record<string, string>;
+  availableMaterials?: string[];
 }
+
+const TEXTURE_SLOTS = [
+  { id: 'logo_1', label: 'Logo 1' },
+  { id: 'logo_2', label: 'Logo 2' },
+  { id: 'logo_3', label: 'Logo 3' },
+];
 
 /**
  * Texture upload component with drag-and-drop support.
@@ -16,10 +23,35 @@ interface TextureUploaderProps {
 export function TextureUploader({ 
   onTextureSelect, 
   disabled = false,
-  currentTexture 
+  currentTextures,
+  availableMaterials = []
 }: TextureUploaderProps) {
   const [isDragOver, setIsDragOver] = useState(false);
+  const [selectedSlot, setSelectedSlot] = useState<string>('logo_1');
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const mode = useMemo(() => {
+    if (availableMaterials.length === 0) return 'standard';
+    
+    const standardKeywords = ['logo', 'front', 'back', 'sleeve', 'decals'];
+    const hasStandardSlots = availableMaterials.some(mat => 
+      standardKeywords.some(kw => mat.toLowerCase().includes(kw))
+    );
+
+    return hasStandardSlots ? 'standard' : 'custom';
+  }, [availableMaterials]);
+
+  useEffect(() => {
+    if (mode === 'custom' && availableMaterials.length > 0) {
+      if (!availableMaterials.includes(selectedSlot)) {
+        setSelectedSlot(availableMaterials[0]);
+      }
+    } else if (mode === 'standard') {
+       if (!TEXTURE_SLOTS.some(s => s.id === selectedSlot)) {
+         setSelectedSlot('logo_1');
+       }
+    }
+  }, [mode, availableMaterials, selectedSlot]);
 
   const processFile = useCallback((file: File) => {
     if (!file.type.startsWith('image/')) {
@@ -28,8 +60,8 @@ export function TextureUploader({
     }
 
     const url = URL.createObjectURL(file);
-    onTextureSelect(url, file);
-  }, [onTextureSelect]);
+    onTextureSelect(url, file, selectedSlot);
+  }, [onTextureSelect, selectedSlot]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -56,18 +88,62 @@ export function TextureUploader({
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) processFile(file);
+    if (file) {
+      processFile(file);
+      e.target.value = '';
+    }
   }, [processFile]);
 
   const handleClick = useCallback(() => {
     if (!disabled) inputRef.current?.click();
   }, [disabled]);
 
+
+  const currentSlotTexture = currentTextures ? currentTextures[selectedSlot] : null;
+
   return (
     <div className="space-y-3">
-      <label className="block text-xs font-medium text-surface-400 uppercase tracking-wider">
-        Custom Texture
-      </label>
+      <div className="flex items-center gap-2 mb-3 px-1">
+        <div className="w-1 h-1 rounded-full bg-accent-500/50" />
+        <label className="text-[10px] font-bold text-surface-400 uppercase tracking-[0.2em]">
+          Texture Appearance
+        </label>
+      </div>
+
+      <div className="flex p-1 bg-surface-900/50 rounded-lg mb-3">
+        {mode === 'standard' ? (
+          TEXTURE_SLOTS.map((slot) => (
+            <button
+              key={slot.id}
+              onClick={() => setSelectedSlot(slot.id)}
+              className={clsx(
+                'flex-1 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-md transition-all',
+                selectedSlot === slot.id
+                  ? 'bg-surface-800 text-accent-400 shadow-sm'
+                  : 'text-surface-500 hover:text-surface-300'
+              )}
+            >
+              {slot.label}
+            </button>
+          ))
+        ) : (
+          <div className="w-full px-2 py-1">
+             <label className="text-[9px] text-surface-500 uppercase font-bold px-1 mb-1 block">
+               Target Material
+             </label>
+             <select 
+               value={selectedSlot}
+               onChange={(e) => setSelectedSlot(e.target.value)}
+               className="w-full bg-surface-800 text-surface-200 text-xs rounded-md border-none p-2 focus:ring-1 focus:ring-accent-500"
+               disabled={disabled}
+             >
+               {availableMaterials.map(mat => (
+                 <option key={mat} value={mat}>{mat}</option>
+               ))}
+             </select>
+          </div>
+        )}
+      </div>
 
       <div
         onClick={handleClick}
@@ -75,12 +151,12 @@ export function TextureUploader({
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         className={clsx(
-          'relative group cursor-pointer rounded-lg border-2 border-dashed transition-all duration-200',
-          'flex flex-col items-center justify-center p-6 min-h-[140px]',
-          disabled && 'opacity-50 cursor-not-allowed',
-          isDragOver 
-            ? 'border-accent-500 bg-accent-500/10' 
-            : 'border-surface-700 bg-surface-900/50 hover:border-surface-500 hover:bg-surface-800/50'
+          'relative rounded-lg border-2 border-dashed transition-all duration-200',
+          'flex flex-col items-center justify-center min-h-[140px]',
+          disabled
+            ? 'opacity-50 cursor-not-allowed border-surface-700 bg-surface-900/50'
+            : 'group/texture cursor-pointer border-surface-700 bg-surface-900/50 hover:border-surface-500 hover:bg-surface-800/50',
+          isDragOver && !disabled && 'border-accent-500 bg-accent-500/10'
         )}
         role="button"
         tabIndex={disabled ? -1 : 0}
@@ -95,32 +171,27 @@ export function TextureUploader({
           className="sr-only"
         />
 
-        {currentTexture ? (
-          <div className="flex flex-col items-center gap-3">
-            <div className="relative">
-              <img 
-                src={currentTexture} 
-                alt="Selected texture"
-                className="w-20 h-20 object-cover rounded-md ring-2 ring-accent-500/50"
-              />
-              <div className="absolute -top-1 -right-1 w-5 h-5 bg-success rounded-full flex items-center justify-center">
-                <svg className="w-3 h-3 text-surface-950" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
+        {currentSlotTexture ? (
+          <div className="relative group w-full h-full">
+            <img
+              src={currentSlotTexture}
+              alt="Texture preview"
+              className="w-full h-full object-cover rounded-xl"
+            />
+            <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity rounded-xl flex items-center justify-center">
+              <span className="text-[10px] font-bold text-white uppercase tracking-wider">Change Texture</span>
             </div>
-            <span className="text-xs text-surface-400">Click to change</span>
           </div>
         ) : (
           <>
             <div className={clsx(
               'w-12 h-12 rounded-lg flex items-center justify-center mb-3 transition-colors',
-              isDragOver ? 'bg-accent-500/20' : 'bg-surface-800 group-hover:bg-surface-700'
+              isDragOver ? 'bg-accent-500/20' : 'bg-surface-800 group-hover/texture:bg-surface-700'
             )}>
               <svg 
                 className={clsx(
                   'w-6 h-6 transition-colors',
-                  isDragOver ? 'text-accent-400' : 'text-surface-400 group-hover:text-surface-300'
+                  isDragOver ? 'text-accent-400' : 'text-surface-400 group-hover/texture:text-surface-300'
                 )} 
                 fill="none" 
                 viewBox="0 0 24 24" 

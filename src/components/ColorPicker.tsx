@@ -104,7 +104,6 @@ export function ColorPicker({ viewerRef, disabled = false }: ColorPickerProps) {
     if (viewer) {
       attachListeners(viewer);
     } else {
-      // If viewer not found, watch for it
       observer = new MutationObserver((mutations) => {
         for (const mutation of mutations) {
           if (mutation.type === 'childList') {
@@ -172,32 +171,27 @@ export function ColorPicker({ viewerRef, disabled = false }: ColorPickerProps) {
   const currentMaterial = materials.find(m => m.name === selectedMaterial);
 
   return (
-    <div className="space-y-4">
-      <label className="block text-xs font-medium text-surface-400 uppercase tracking-wider">
-        Colors
-      </label>
+    <div className="space-y-6">
 
-      {isLoading ? (
-        <div className="flex items-center gap-2 text-sm text-surface-500">
-          <div className="w-4 h-4 border-2 border-accent-500 border-t-transparent rounded-full animate-spin" />
-          Loading materials...
-        </div>
-      ) : (
+      {!isLoading && (
         <>
           {materials.length > 1 && (
-            <div className="space-y-2">
-              <span className="text-xs text-surface-500">Select part</span>
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 px-1">
+                <div className="w-1 h-1 rounded-full bg-accent-500/50" />
+                <span className="block text-[10px] font-bold text-surface-400 uppercase tracking-[0.2em]">Select Material Section</span>
+              </div>
               <div className="flex flex-wrap gap-2">
                 {materials.map((mat) => (
                   <button
                     key={mat.name}
                     onClick={() => setSelectedMaterial(mat.name)}
                     className={clsx(
-                      'px-3 py-1.5 text-xs rounded-md transition-all',
+                      'px-3 py-1.5 text-xs font-medium rounded-lg transition-all',
                       'border',
                       selectedMaterial === mat.name
-                        ? 'bg-accent-500/20 border-accent-500 text-accent-400'
-                        : 'bg-surface-800 border-surface-700 text-surface-300 hover:border-surface-600'
+                        ? 'bg-accent-500/10 border-accent-500 text-accent-400 shadow-[0_0_10px_rgba(var(--color-accent-500),0.1)]'
+                        : 'bg-surface-800/50 border-surface-700/50 text-surface-400 hover:border-surface-600 hover:text-surface-200'
                     )}
                   >
                     {mat.displayName}
@@ -207,20 +201,23 @@ export function ColorPicker({ viewerRef, disabled = false }: ColorPickerProps) {
             </div>
           )}
 
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-surface-500">
-                {materials.length === 1 ? materials[0].displayName : 'Choose color'}
-              </span>
+          <div className="space-y-3 pt-4">
+            <div className="flex items-center justify-between px-1">
+              <div className="flex items-center gap-2">
+                <div className="w-1 h-1 rounded-full bg-accent-500/50" />
+                <span className="text-[10px] font-bold text-surface-400 uppercase tracking-[0.2em]">
+                  {selectedMaterial ? 'Choose Finish' : 'Pick a Section'}
+                </span>
+              </div>
               {currentMaterial && (
                 <div 
-                  className="w-5 h-5 rounded border border-surface-600"
+                  className="w-4 h-4 rounded-full border border-surface-600 shadow-inner"
                   style={{ backgroundColor: currentMaterial.color }}
                 />
               )}
             </div>
             
-            <div className="grid grid-cols-5 gap-2">
+            <div className="grid grid-cols-5 gap-3">
               {COLOR_PRESETS.map((color) => (
                 <button
                   key={color.value}
@@ -239,16 +236,18 @@ export function ColorPicker({ viewerRef, disabled = false }: ColorPickerProps) {
               ))}
             </div>
 
-            <div className="flex items-center gap-3 pt-2">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="color"
-                  value={currentMaterial?.color || '#888888'}
-                  onChange={handleCustomColor}
-                  className="w-8 h-8 rounded cursor-pointer bg-transparent border-0"
-                  aria-label="Custom color picker"
-                />
-                <span className="text-xs text-surface-500">Custom color</span>
+            <div className="flex items-center gap-4 pt-2">
+              <label className="flex items-center gap-3 cursor-pointer group/color-picker">
+                <div className="relative w-8 h-8 rounded-full overflow-hidden border-2 border-surface-700 group-hover/color-picker:border-surface-500 transition-colors">
+                  <input
+                    type="color"
+                    value={currentMaterial?.color || '#888888'}
+                    onChange={handleCustomColor}
+                    className="absolute inset-0 w-[150%] h-[150%] -translate-x-[15%] -translate-y-[15%] cursor-pointer"
+                    aria-label="Custom color picker"
+                  />
+                </div>
+                <span className="text-[10px] font-bold text-surface-500 group-hover/color-picker:text-surface-300 transition-colors uppercase tracking-widest">Custom Picker</span>
               </label>
             </div>
           </div>
