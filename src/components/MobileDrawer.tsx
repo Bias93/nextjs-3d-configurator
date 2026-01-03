@@ -39,7 +39,7 @@ export function MobileDrawer({
     >
       <Drawer.Portal>
         <Drawer.Content 
-          className="fixed bottom-0 left-0 right-0 z-50 flex flex-col bg-surface-800 rounded-t-3xl outline-none border-t border-surface-700"
+          className="lg:hidden fixed bottom-0 left-0 right-0 z-50 flex flex-col bg-surface-800 rounded-t-3xl outline-none border-t border-surface-700"
         >
           <Drawer.Handle className="mx-auto mt-3 mb-2 w-12 h-1.5 rounded-full bg-surface-500 cursor-grab active:cursor-grabbing" />
           

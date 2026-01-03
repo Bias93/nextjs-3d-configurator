@@ -38,9 +38,8 @@ export default function ConfiguratorPage() {
   
   const viewerRef = useRef<HTMLDivElement>(null);
   const [canAR, setCanAR] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
 
-  // Check AR availability and mobile after hydration
+  // Check AR availability after hydration
   useEffect(() => {
     const checkAR = () => {
       const isARCapable = 'xr' in navigator || 
@@ -48,14 +47,6 @@ export default function ConfiguratorPage() {
       setCanAR(isARCapable);
     };
     checkAR();
-    
-    // Check if mobile
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 1024);
-    };
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
   const handleModelSelect = useCallback((url: string, fileName: string) => {
@@ -263,16 +254,14 @@ export default function ConfiguratorPage() {
       </aside>
 
       {/* Mobile Bottom Sheet - Only rendered on mobile, dynamically imported */}
-      {isMobile && (
-        <MobileDrawer
-          modelUrl={modelUrl}
-          modelName={modelName}
-          textureUrl={textureUrl}
-          textureApplied={textureApplied}
-          onModelSelect={handleModelSelect}
-          onTextureSelect={handleTextureSelect}
-        />
-      )}
+      <MobileDrawer
+        modelUrl={modelUrl}
+        modelName={modelName}
+        textureUrl={textureUrl}
+        textureApplied={textureApplied}
+        onModelSelect={handleModelSelect}
+        onTextureSelect={handleTextureSelect}
+      />
     </div>
   );
 }
