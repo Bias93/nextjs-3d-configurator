@@ -12,6 +12,10 @@ interface ModelUploaderProps {
 
 const VALID_EXTENSIONS = ['.glb', '.gltf'];
 
+// Security limits for ZIP uploads
+const MAX_ZIP_FILES = 50;
+const MAX_ZIP_TOTAL_SIZE = 150 * 1024 * 1024; // 150MB
+
 interface PatchResult {
   url: string;
   missingResources: string[];
@@ -142,15 +146,38 @@ export function ModelUploader({
       try {
         const zip = new JSZip();
         const zipContent = await zip.loadAsync(zipFile);
+        
+        const filesCount = Object.keys(zipContent.files).length;
+        if (filesCount > MAX_ZIP_FILES) {
+          throw new Error(`ZIP contains too many files (max ${MAX_ZIP_FILES})`);
+        }
+
         const extractedFiles: File[] = [];
+        let totalSize = 0;
 
         console.log('📦 Extracting ZIP:', zipFile.name);
 
         const extractionPromises: Promise<void>[] = [];
 
+        let fileCount = 0;
+        for (const [relativePath, zipEntry] of Object.entries(zipContent.files)) {
+          if (!zipEntry.dir) {
+            fileCount++;
+            
+            if (relativePath.toLowerCase().endsWith('.zip')) {
+              throw new Error('Nested ZIP files are not allowed');
+            }
+          }
+        }
+
         zipContent.forEach((relativePath, zipEntry) => {
           if (!zipEntry.dir) {
             const promise = zipEntry.async('blob').then(blob => {
+              totalSize += blob.size;
+              if (totalSize > MAX_ZIP_TOTAL_SIZE) {
+                throw new Error(`Total extracted size exceeds limit (${MAX_ZIP_TOTAL_SIZE / 1024 / 1024}MB)`);
+              }
+
               const filename = relativePath.split('/').pop() || relativePath;
               const file = new File([blob], filename, { type: blob.type });
               extractedFiles.push(file);
@@ -168,7 +195,7 @@ export function ModelUploader({
 
       } catch (error) {
         console.error('Error extracting ZIP:', error);
-        alert('Failed to extract ZIP file');
+        alert(error instanceof Error ? error.message : 'Failed to extract ZIP file');
         setIsLoading(false);
         return;
       }
