@@ -43,6 +43,8 @@ export function ViewerControls({
         disabled={!hasModel}
         className={clsx(buttonStyle, isAutoRotating && 'text-accent-400 bg-accent-400/10 border-accent-400/30')}
         title={isAutoRotating ? 'Stop rotation' : 'Start rotation'}
+        aria-label={isAutoRotating ? 'Stop rotation' : 'Start rotation'}
+        aria-pressed={isAutoRotating}
       >
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -54,6 +56,7 @@ export function ViewerControls({
         disabled={!hasModel}
         className={buttonStyle}
         title="Reset view"
+        aria-label="Reset view"
       >
         <svg className="w-5 h-5 text-surface-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -65,6 +68,7 @@ export function ViewerControls({
         disabled={!hasModel}
         className={buttonStyle}
         title="Save screenshot"
+        aria-label="Save screenshot"
       >
         <svg className="w-5 h-5 text-surface-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
@@ -76,6 +80,8 @@ export function ViewerControls({
         onClick={onToggleFocus}
         className={clsx(buttonStyle, isFocusMode && 'text-accent-400 bg-accent-400/10 border-accent-400/30')}
         title={isFocusMode ? 'Show UI' : 'Hide UI (Focus Mode)'}
+        aria-label={isFocusMode ? 'Show UI' : 'Hide UI (Focus Mode)'}
+        aria-pressed={isFocusMode}
       >
         {isFocusMode ? (
            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -100,6 +106,7 @@ export function ViewerControls({
             'shadow-lg shadow-accent-500/25 text-surface-950'
           )}
           title="View in AR"
+          aria-label="View in AR"
         >
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9" />
