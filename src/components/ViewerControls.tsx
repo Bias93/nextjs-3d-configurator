@@ -1,6 +1,7 @@
 'use client';
 
 import { clsx } from 'clsx';
+import { memo } from 'react';
 
 interface ViewerControlsProps {
   onScreenshot?: () => void;
@@ -14,11 +15,18 @@ interface ViewerControlsProps {
   canAR?: boolean;
 }
 
+const buttonStyle = clsx(
+  'flex items-center justify-center w-11 h-11 rounded-xl transition-all duration-300',
+  'bg-surface-900/40 backdrop-blur-md border border-surface-700/50 shadow-xl',
+  'hover:bg-surface-800/60 hover:border-surface-600 hover:scale-105',
+  'active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed'
+);
+
 /**
  * Floating control buttons for the 3D viewer.
  * Provides screenshot, reset view, auto-rotate toggle, focus mode and AR functionality.
  */
-export function ViewerControls({
+export const ViewerControls = memo(function ViewerControls({
   onScreenshot,
   onReset,
   onToggleAutoRotate,
@@ -29,12 +37,6 @@ export function ViewerControls({
   hasModel = false,
   canAR = false,
 }: ViewerControlsProps) {
-  const buttonStyle = clsx(
-    'flex items-center justify-center w-11 h-11 rounded-xl transition-all duration-300',
-    'bg-surface-900/40 backdrop-blur-md border border-surface-700/50 shadow-xl',
-    'hover:bg-surface-800/60 hover:border-surface-600 hover:scale-105',
-    'active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed'
-  );
 
   return (
     <div className="absolute bottom-24 lg:bottom-6 left-1/2 -translate-x-1/2 lg:left-auto lg:right-6 lg:translate-x-0 flex items-center gap-3 z-50 p-2 rounded-2xl glass border-surface-800/30 pointer-events-auto">
@@ -108,6 +110,6 @@ export function ViewerControls({
       )}
     </div>
   );
-}
+});
 
 export default ViewerControls;

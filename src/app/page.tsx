@@ -135,6 +135,10 @@ export default function ConfiguratorPage() {
     setArStatus(status);
   }, []);
 
+  const handleToggleFocus = useCallback(() => {
+    setIsFocusMode(prev => !prev);
+  }, []);
+
   return (
     <SidebarProvider defaultOpen={true} className="dark">
       <ConfiguratorContent 
@@ -150,7 +154,7 @@ export default function ConfiguratorPage() {
         handleARStatusChange={handleARStatusChange}
         arStatus={arStatus}
         isFocusMode={isFocusMode}
-        setIsFocusMode={setIsFocusMode}
+        handleToggleFocus={handleToggleFocus}
         isAutoRotating={isAutoRotating}
         handleScreenshot={handleScreenshot}
         handleReset={handleReset}
@@ -166,7 +170,7 @@ export default function ConfiguratorPage() {
 function ConfiguratorContent({ 
   modelUrl, modelName, textures, availableMaterials, textureApplied, 
   handleModelSelect, handleMaterialsLoaded, handleTextureSelect, handleTextureApplied,
-  handleARStatusChange, arStatus, isFocusMode, setIsFocusMode,
+  handleARStatusChange, arStatus, isFocusMode, handleToggleFocus,
   isAutoRotating, handleScreenshot, handleReset,
   handleToggleAutoRotate, handleActivateAR, canAR, viewerRef
 }: any) {
@@ -365,7 +369,7 @@ function ConfiguratorContent({
                 onReset={handleReset}
                 onToggleAutoRotate={handleToggleAutoRotate}
                 onActivateAR={handleActivateAR}
-                onToggleFocus={() => setIsFocusMode(!isFocusMode)}
+                onToggleFocus={handleToggleFocus}
                 isAutoRotating={isAutoRotating}
                 isFocusMode={isFocusMode}
                 hasModel={!!modelUrl}
