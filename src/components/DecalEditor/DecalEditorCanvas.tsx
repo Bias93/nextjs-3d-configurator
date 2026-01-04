@@ -1,8 +1,8 @@
 'use client';
 
 import { Suspense, useRef, useState, useEffect, useCallback } from 'react';
-import { Canvas, useThree } from '@react-three/fiber';
-import { OrbitControls, useGLTF, Environment, Center } from '@react-three/drei';
+import { Canvas, useThree, useLoader } from '@react-three/fiber';
+import { OrbitControls, useGLTF, Environment, Center, useTexture } from '@react-three/drei';
 import * as THREE from 'three';
 import type { DecalTransform, DecalEditorProps } from '@/types/decal';
 import { EditableDecal } from './EditableDecal';
@@ -29,32 +29,50 @@ function Model({
   activeSlotName,
 }: ModelProps) {
   const { scene } = useGLTF(url);
+  const texture = useTexture(textureUrl); // Load the texture to apply to the mesh
   const [targetMesh, setTargetMesh] = useState<THREE.Mesh | null>(null);
   const [isSelected, setIsSelected] = useState(true);
   const meshRef = useRef<THREE.Mesh | null>(null);
   const { gl } = useThree();
 
+  // Configure texture encoding to match R3F defaults
+  useEffect(() => {
+    if (texture) {
+      texture.colorSpace = THREE.SRGBColorSpace;
+      texture.flipY = false; // model-viewer often flips Y, but standard Three.js might not. Check if needed.
+      // Usually GLTF expects flipY=false.
+    }
+  }, [texture]);
+
   // Clone scene to avoid modifying cached version
   const clonedScene = scene.clone();
 
-  // Find correct mesh for decal target based on slot name
+  // Find correct mesh for decal target based on slot name AND apply texture
   useEffect(() => {
     let found: THREE.Mesh | null = null;
 
     const targetNames = activeSlotName ? (materialTargetMap[activeSlotName] || [activeSlotName]) : [];
 
     // First try to find by material name
-    if (activeSlotName) {
-        clonedScene.traverse((child) => {
-            if (child instanceof THREE.Mesh && child.material && !found) {
-                const mat = child.material as THREE.Material;
-                if (targetNames.some(name => mat.name.toLowerCase().includes(name.toLowerCase()))) {
-                    found = child;
-                    meshRef.current = child;
+    clonedScene.traverse((child) => {
+        if (child instanceof THREE.Mesh && child.material) {
+            const mat = child.material as THREE.MeshStandardMaterial; // Assume standard material
+            // Check if this is the target mesh
+            if (!found && activeSlotName && targetNames.some(name => mat.name.toLowerCase().includes(name.toLowerCase()))) {
+                found = child;
+                meshRef.current = child;
+
+                // APPLY TEXTURE TO THE MATERIAL so user sees it "wrapped"
+                if (mat.map && texture) {
+                    mat.map = texture;
+                    mat.needsUpdate = true;
+                } else if (texture) {
+                    mat.map = texture;
+                    mat.needsUpdate = true;
                 }
             }
-        });
-    }
+        }
+    });
 
     // Fallback: Find first mesh if not found
     if (!found) {
@@ -67,7 +85,7 @@ function Model({
     }
 
     setTargetMesh(found);
-  }, [url, activeSlotName]);
+  }, [url, activeSlotName, texture]);
 
   // Click outside to deselect
   const handlePointerMissed = useCallback(() => {

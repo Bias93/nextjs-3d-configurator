@@ -186,6 +186,7 @@ export const ProductViewer = forwardRef<HTMLElement, ProductViewerProps>(({
           const mat = child.material;
           if (targetNames.some(name => mat.name.toLowerCase().includes(name.toLowerCase()))) {
             targetMaterial = mat;
+            // console.log('[Transform] Found material:', mat.name);
           }
         }
       });
@@ -195,27 +196,29 @@ export const ProductViewer = forwardRef<HTMLElement, ProductViewerProps>(({
         return;
       }
       
-      const texture = targetMaterial.map;
+      // Apply to both map (base color) and emissiveMap if they exist
+      const texturesToUpdate = [targetMaterial.map, targetMaterial.emissiveMap].filter(Boolean);
 
-      if (texture) {
-        // Apply UV transforms
-        texture.offset.set(transform.offsetU, transform.offsetV);
-        texture.repeat.set(transform.scaleU, transform.scaleV);
-        texture.rotation = degreesToRadians(transform.rotation);
+      if (texturesToUpdate.length > 0) {
+        texturesToUpdate.forEach(texture => {
+            // Apply UV transforms
+            texture.offset.set(transform.offsetU, transform.offsetV);
+            texture.repeat.set(transform.scaleU, transform.scaleV);
+            texture.rotation = degreesToRadians(transform.rotation);
 
-        // Ensure texture rotates around center
-        texture.center.set(0.5, 0.5);
+            // Ensure texture rotates around center
+            texture.center.set(0.5, 0.5);
 
-        // Ensure matrix updates are enabled for UV transforms to take effect
-        texture.matrixAutoUpdate = true;
+            // Ensure matrix updates are enabled for UV transforms to take effect
+            texture.matrixAutoUpdate = true;
 
-        texture.needsUpdate = true;
+            texture.needsUpdate = true;
+        });
+
         targetMaterial.needsUpdate = true;
-
-        // Also update emissive map if it exists and shares the texture
-        if (targetMaterial.emissiveMap === texture) {
-            targetMaterial.emissiveMap.needsUpdate = true;
-        }
+      } else {
+        console.warn('[Transform] No texture map on material', targetMaterial.name);
+      }
 
         // Force re-render
         if (viewer.updateFraming) {
@@ -223,9 +226,6 @@ export const ProductViewer = forwardRef<HTMLElement, ProductViewerProps>(({
             // viewer.updateFraming();
             // Or just rely on the reactivity
         }
-      } else {
-        console.warn('[Transform] No texture map on material', targetMaterial.name);
-      }
 
     } catch (error) {
       console.error('[Transform] Error:', error);
