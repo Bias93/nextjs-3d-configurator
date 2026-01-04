@@ -7,6 +7,9 @@ import { ModelUploader } from '@/components/ModelUploader';
 import { TextureUploader } from '@/components/TextureUploader';
 import { ViewerControls } from '@/components/ViewerControls';
 import { ColorPicker } from '@/components/ColorPicker';
+import { TextureTransformPanel } from '@/components/TextureTransformPanel';
+import { useTextureTransform } from '@/hooks/use-texture-transform';
+import { useDecalTransform } from '@/hooks/use-decal-transform';
 import {
   Sidebar,
   SidebarContent,
@@ -39,6 +42,12 @@ const MobileDrawer = dynamic(
   { ssr: false }
 );
 
+// Lazy load DecalEditorCanvas to avoid loading R3F unless needed
+const DecalEditorCanvas = dynamic(
+  () => import('@/components/DecalEditor').then(mod => ({ default: mod.DecalEditorCanvas })),
+  { ssr: false }
+);
+
 /**
  * Main 3D product configurator page.
  */
@@ -50,10 +59,21 @@ export default function ConfiguratorPage() {
   const [isAutoRotating, setIsAutoRotating] = useState(false);
   const [textureApplied, setTextureApplied] = useState(false);
   const [isFocusMode, setIsFocusMode] = useState(false);
+  const [activeTextureSlot, setActiveTextureSlot] = useState<string | null>(null);
   
   const viewerRef = useRef<HTMLDivElement>(null);
   const [canAR, setCanAR] = useState(false);
   const [arStatus, setArStatus] = useState<string>('not-presenting');
+
+  // Texture transform hook for adjusting UV offset/scale/rotation
+  const {
+    getTransform,
+    updateProperty: updateTransformProperty,
+    resetTransform,
+  } = useTextureTransform();
+
+  // Decal transform hook for 3D positioning
+  const decal = useDecalTransform();
 
 
   useEffect(() => {
@@ -158,6 +178,14 @@ export default function ConfiguratorPage() {
         handleActivateAR={handleActivateAR}
         canAR={canAR}
         viewerRef={viewerRef}
+        // Texture transform props
+        activeTextureSlot={activeTextureSlot}
+        setActiveTextureSlot={setActiveTextureSlot}
+        getTransform={getTransform}
+        updateTransformProperty={updateTransformProperty}
+        resetTransform={resetTransform}
+        // Decal editor
+        decal={decal}
       />
     </SidebarProvider>
   );
@@ -168,7 +196,11 @@ function ConfiguratorContent({
   handleModelSelect, handleMaterialsLoaded, handleTextureSelect, handleTextureApplied,
   handleARStatusChange, arStatus, isFocusMode, setIsFocusMode,
   isAutoRotating, handleScreenshot, handleReset,
-  handleToggleAutoRotate, handleActivateAR, canAR, viewerRef
+  handleToggleAutoRotate, handleActivateAR, canAR, viewerRef,
+  // Texture transform props
+  activeTextureSlot, setActiveTextureSlot, getTransform, updateTransformProperty, resetTransform,
+  // Decal editor
+  decal
 }: any) {
   const { state } = useSidebar();
   const isCollapsed = state === "collapsed";
@@ -219,7 +251,10 @@ function ConfiguratorContent({
             <SidebarGroup className="p-0">
               <SidebarGroupContent className="px-2">
                 <TextureUploader 
-                  onTextureSelect={handleTextureSelect}
+                  onTextureSelect={(url, file, slotName) => {
+                    handleTextureSelect(url, file, slotName);
+                    setActiveTextureSlot(slotName);
+                  }}
                   disabled={!modelUrl}
                   currentTextures={textures}
                   availableMaterials={availableMaterials}
@@ -232,6 +267,45 @@ function ConfiguratorContent({
                       </svg>
                     </div>
                     <span className="text-[9px] font-black text-success uppercase tracking-widest">Texture Applied</span>
+                  </div>
+                )}
+                
+                {/* Texture Transform Panel - show when a texture is applied */}
+                {activeTextureSlot && textures[activeTextureSlot] && (
+                  <div className="mt-4">
+                    <TextureTransformPanel
+                      materialName={activeTextureSlot}
+                      transform={getTransform(activeTextureSlot)}
+                      onTransformChange={(property, value) => {
+                        updateTransformProperty(activeTextureSlot, property, value);
+                        // Apply transform to model-viewer
+                        const viewer = viewerRef.current?.querySelector('model-viewer') as any;
+                        if (viewer?.applyTextureTransform) {
+                          const currentTransform = getTransform(activeTextureSlot);
+                          viewer.applyTextureTransform(activeTextureSlot, {
+                            ...currentTransform,
+                            [property]: value
+                          });
+                        }
+                      }}
+                      onReset={() => resetTransform(activeTextureSlot)}
+                      disabled={!modelUrl}
+                    />
+                    
+                    {/* Edit Position Button */}
+                    <button
+                      onClick={() => decal.startEditing(textures[activeTextureSlot], activeTextureSlot)}
+                      className="w-full mt-3 flex items-center justify-center gap-2 px-4 py-3 rounded-xl
+                        bg-accent-500/10 border border-accent-500/30
+                        hover:bg-accent-500/20 hover:border-accent-500/50
+                        transition-all duration-200
+                        text-xs font-bold text-accent-400 uppercase tracking-wider"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                      </svg>
+                      Edit Position
+                    </button>
                   </div>
                 )}
               </SidebarGroupContent>
@@ -315,12 +389,15 @@ function ConfiguratorContent({
             >
               {modelUrl ? (
                 <>
-                  <ProductViewer
-                    modelSrc={modelUrl as string}
-                    onTextureApplied={handleTextureApplied}
-                    onMaterialsLoaded={handleMaterialsLoaded}
-                    onARStatusChange={handleARStatusChange}
-                  />
+                  {/* Unmount model-viewer when Decal Editor is open to prevent WebGL conflicts */}
+                  {!decal.isEditing && (
+                    <ProductViewer
+                      modelSrc={modelUrl as string}
+                      onTextureApplied={handleTextureApplied}
+                      onMaterialsLoaded={handleMaterialsLoaded}
+                      onARStatusChange={handleARStatusChange}
+                    />
+                  )}
                 </>
               ) : (
                 <div className="flex flex-col items-center justify-center text-center p-12 max-w-md mx-auto animate-in fade-in zoom-in-95 duration-700">
@@ -345,7 +422,7 @@ function ConfiguratorContent({
                 <div className="flex items-center gap-3.5 px-5 py-3 rounded-2xl bg-surface-900/80 backdrop-blur-xl border border-surface-700/50 shadow-2xl">
                   <div className={clsx(
                     'w-2.5 h-2.5 rounded-full ring-4 ring-offset-0 transition-all duration-500',
-                    arStatus === 'not-presenting' && 'bg-success ring-success/20 shadow-[0_0_15px_rgba(var(--color-success),0.5)]',
+                    arStatus === 'not-presenting' && 'bg-success ring-success/20 shadow-lg shadow-emerald-500/20',
                     arStatus === 'session-started' && 'bg-warning ring-warning/20 animate-pulse',
                     arStatus === 'object-placed' && 'bg-accent-500 ring-accent-500/20',
                     arStatus === 'failed' && 'bg-error ring-error/20'
@@ -384,6 +461,18 @@ function ConfiguratorContent({
             onModelSelect={handleModelSelect}
             onTextureSelect={handleTextureSelect}
             viewerRef={viewerRef}
+          />
+        )}
+
+        {/* Decal Editor Overlay */}
+        {decal.isEditing && modelUrl && decal.textureUrl && (
+          <DecalEditorCanvas
+            modelUrl={modelUrl}
+            textureUrl={decal.textureUrl}
+            initialTransform={decal.transform}
+            onTransformChange={decal.setTransform}
+            onApply={decal.applyEditing}
+            onCancel={decal.cancelEditing}
           />
         )}
       </div>

@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback, forwardRef } from 'react';
+import type { TextureTransform } from '@/types/texture-transform';
+import { DEFAULT_TEXTURE_TRANSFORM } from '@/types/texture-transform';
 
 interface ProductViewerProps {
   modelSrc: string;
@@ -9,6 +11,13 @@ interface ProductViewerProps {
   onTextureApplied?: () => void;
   onMaterialsLoaded?: (materials: string[]) => void;
   onARStatusChange?: (status: 'not-presenting' | 'session-started' | 'object-placed' | 'failed') => void;
+}
+
+/**
+ * Converts degrees to radians.
+ */
+function degreesToRadians(degrees: number): number {
+  return (degrees * Math.PI) / 180;
 }
 
 export const ProductViewer = forwardRef<HTMLElement, ProductViewerProps>(({
@@ -27,6 +36,8 @@ export const ProductViewer = forwardRef<HTMLElement, ProductViewerProps>(({
   const [arStatus, setArStatus] = useState<string>('not-presenting');
   const [arTracking, setArTracking] = useState<string>('not-tracking');
 
+  // Store original texture URLs for re-transformation
+  const originalTexturesRef = useRef<Record<string, string>>({});
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -96,11 +107,20 @@ export const ProductViewer = forwardRef<HTMLElement, ProductViewerProps>(({
     setIsLoaded(false);
   }, [modelSrc]);
 
-  const applyTexture = useCallback(async (textureUrl: string, slotName: string = 'logo_1') => {
+  /**
+   * Applies a texture to a material slot.
+   */
+  const applyTexture = useCallback(async (
+    textureUrl: string, 
+    slotName: string = 'logo_1'
+  ) => {
     const viewer = viewerRef.current as ModelViewerElement | null;
     if (!viewer?.model) return;
 
     try {
+      // Store original texture URL
+      originalTexturesRef.current[slotName] = textureUrl;
+
       const newTexture = await viewer.createTexture(textureUrl);
       const materials = viewer.model.materials;
 
@@ -136,11 +156,98 @@ export const ProductViewer = forwardRef<HTMLElement, ProductViewerProps>(({
     }
   }, [onTextureApplied]);
 
+  /**
+   * Applies UV transform to an already-applied texture.
+   * Uses Three.js texture properties: offset, repeat, rotation.
+   */
+  const applyTextureTransform = useCallback((
+    slotName: string,
+    transform: TextureTransform
+  ) => {
+    const viewer = viewerRef.current as ModelViewerElement | null;
+    if (!viewer) {
+      console.warn('[Transform] No viewer ref');
+      return;
+    }
+    if (!viewer.model) {
+      console.warn('[Transform] No model loaded');
+      return;
+    }
+
+    try {
+      const materials = viewer.model.materials;
+      if (!materials || materials.length === 0) {
+        console.warn('[Transform] No materials found');
+        return;
+      }
+
+      const materialTargetMap: Record<string, string[]> = {
+        'logo_1': ['logo.001', 'logo_1', 'logo_front', 'decals_1', 'frame', 'telaio'],
+        'logo_2': ['logo.002', 'logo_2', 'logo_back', 'decals_2'],
+        'logo_3': ['logo.003', 'logo_3', 'logo_sleeve', 'decals_3']
+      };
+
+      const targetNames = materialTargetMap[slotName] || [slotName];
+
+      const targetMaterial = materials.find((m: Material) => 
+        targetNames.some(name => m.name.toLowerCase().includes(name.toLowerCase()))
+      );
+
+      if (!targetMaterial) {
+        console.warn(`[Transform] No material found for slot: ${slotName}. Available materials:`, materials.map((m: Material) => m.name));
+        return;
+      }
+
+      // Safety check for pbrMetallicRoughness
+      if (!targetMaterial.pbrMetallicRoughness) {
+        console.warn('[Transform] Material has no pbrMetallicRoughness');
+        return;
+      }
+
+      // Access the Three.js texture through model-viewer's material API
+      // Cast to any because model-viewer's types don't expose Three.js internals
+      const baseColorTexture = targetMaterial.pbrMetallicRoughness.baseColorTexture as any;
+      if (!baseColorTexture) {
+        console.warn('[Transform] No baseColorTexture found');
+        return;
+      }
+
+      // Access the underlying Three.js texture (may be nested differently based on model-viewer version)
+      const threeTexture = baseColorTexture.texture?.source || baseColorTexture.source || baseColorTexture;
+      
+      if (threeTexture && typeof threeTexture === 'object') {
+        // Apply UV transforms
+        if (threeTexture.offset && typeof threeTexture.offset.set === 'function') {
+          threeTexture.offset.set(transform.offsetU, transform.offsetV);
+        }
+        if (threeTexture.repeat && typeof threeTexture.repeat.set === 'function') {
+          threeTexture.repeat.set(transform.scaleU, transform.scaleV);
+        }
+        if (typeof threeTexture.rotation !== 'undefined') {
+          threeTexture.rotation = degreesToRadians(transform.rotation);
+        }
+        if (threeTexture.center && typeof threeTexture.center.set === 'function') {
+          threeTexture.center.set(0.5, 0.5); // Rotate around center
+        }
+        if ('needsUpdate' in threeTexture) {
+          threeTexture.needsUpdate = true;
+        }
+      } else {
+        console.warn('[Transform] Could not access Three.js texture object');
+      }
+    } catch (error) {
+      console.error('[Transform] Error:', error);
+    }
+  }, []);
+
   useEffect(() => {
     if (viewerRef.current) {
       (viewerRef.current as any).applyCustomTexture = applyTexture;
+      (viewerRef.current as any).applyTextureTransform = applyTextureTransform;
+      (viewerRef.current as any).getOriginalTexture = (slotName: string) => 
+        originalTexturesRef.current[slotName];
     }
-  }, [applyTexture, isLoaded]);
+  }, [applyTexture, applyTextureTransform, isLoaded]);
 
   if (!isModelViewerReady) {
     return (

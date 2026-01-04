@@ -190,7 +190,7 @@ export function ColorPicker({ viewerRef, disabled = false }: ColorPickerProps) {
                       'px-3 py-1.5 text-xs font-medium rounded-lg transition-all',
                       'border',
                       selectedMaterial === mat.name
-                        ? 'bg-accent-500/10 border-accent-500 text-accent-400 shadow-[0_0_10px_rgba(var(--color-accent-500),0.1)]'
+                        ? 'bg-accent-500/10 border-accent-500 text-accent-400 shadow-lg shadow-accent-500/10'
                         : 'bg-surface-800/50 border-surface-700/50 text-surface-400 hover:border-surface-600 hover:text-surface-200'
                     )}
                   >
