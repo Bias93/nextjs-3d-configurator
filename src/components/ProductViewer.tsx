@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState, useCallback, forwardRef } from 'react';
 import type { TextureTransform } from '@/types/texture-transform';
 import { DEFAULT_TEXTURE_TRANSFORM } from '@/types/texture-transform';
+import { materialTargetMap } from '@/lib/material-utils';
+import * as THREE from 'three';
 
 interface ProductViewerProps {
   modelSrc: string;
@@ -124,12 +126,6 @@ export const ProductViewer = forwardRef<HTMLElement, ProductViewerProps>(({
       const newTexture = await viewer.createTexture(textureUrl);
       const materials = viewer.model.materials;
 
-      const materialTargetMap: Record<string, string[]> = {
-        'logo_1': ['logo.001', 'logo_1', 'logo_front', 'decals_1'],
-        'logo_2': ['logo.002', 'logo_2', 'logo_back', 'decals_2'],
-        'logo_3': ['logo.003', 'logo_3', 'logo_sleeve', 'decals_3']
-      };
-
       const targetNames = materialTargetMap[slotName] || [slotName];
 
       const targetMaterial = materials.find((m: Material) => 
@@ -164,77 +160,65 @@ export const ProductViewer = forwardRef<HTMLElement, ProductViewerProps>(({
     slotName: string,
     transform: TextureTransform
   ) => {
-    const viewer = viewerRef.current as ModelViewerElement | null;
+    const viewer = viewerRef.current as any;
     if (!viewer) {
       console.warn('[Transform] No viewer ref');
       return;
     }
-    if (!viewer.model) {
-      console.warn('[Transform] No model loaded');
-      return;
-    }
 
     try {
-      const materials = viewer.model.materials;
-      if (!materials || materials.length === 0) {
-        console.warn('[Transform] No materials found');
+      // Access internal Three.js scene
+      const sceneSymbol = Object.getOwnPropertySymbols(viewer).find((s) => s.description === 'model-viewer-scene');
+      const scene = sceneSymbol ? viewer[sceneSymbol] : null;
+
+      if (!scene) {
+        console.warn('[Transform] Could not access internal scene');
         return;
       }
-
-      const materialTargetMap: Record<string, string[]> = {
-        'logo_1': ['logo.001', 'logo_1', 'logo_front', 'decals_1', 'frame', 'telaio'],
-        'logo_2': ['logo.002', 'logo_2', 'logo_back', 'decals_2'],
-        'logo_3': ['logo.003', 'logo_3', 'logo_sleeve', 'decals_3']
-      };
 
       const targetNames = materialTargetMap[slotName] || [slotName];
 
-      const targetMaterial = materials.find((m: Material) => 
-        targetNames.some(name => m.name.toLowerCase().includes(name.toLowerCase()))
-      );
+      let targetMaterial: any = null;
+
+      // Traverse the scene to find the material
+      scene.traverse((child: any) => {
+        if (child.isMesh && child.material) {
+          const mat = child.material;
+          if (targetNames.some(name => mat.name.toLowerCase().includes(name.toLowerCase()))) {
+            targetMaterial = mat;
+          }
+        }
+      });
 
       if (!targetMaterial) {
-        console.warn(`[Transform] No material found for slot: ${slotName}. Available materials:`, materials.map((m: Material) => m.name));
+        console.warn(`[Transform] No Three.js material found for slot: ${slotName}`);
         return;
       }
-
-      // Safety check for pbrMetallicRoughness
-      if (!targetMaterial.pbrMetallicRoughness) {
-        console.warn('[Transform] Material has no pbrMetallicRoughness');
-        return;
-      }
-
-      // Access the Three.js texture through model-viewer's material API
-      // Cast to any because model-viewer's types don't expose Three.js internals
-      const baseColorTexture = targetMaterial.pbrMetallicRoughness.baseColorTexture as any;
-      if (!baseColorTexture) {
-        console.warn('[Transform] No baseColorTexture found');
-        return;
-      }
-
-      // Access the underlying Three.js texture (may be nested differently based on model-viewer version)
-      const threeTexture = baseColorTexture.texture?.source || baseColorTexture.source || baseColorTexture;
       
-      if (threeTexture && typeof threeTexture === 'object') {
+      const texture = targetMaterial.map;
+
+      if (texture) {
         // Apply UV transforms
-        if (threeTexture.offset && typeof threeTexture.offset.set === 'function') {
-          threeTexture.offset.set(transform.offsetU, transform.offsetV);
-        }
-        if (threeTexture.repeat && typeof threeTexture.repeat.set === 'function') {
-          threeTexture.repeat.set(transform.scaleU, transform.scaleV);
-        }
-        if (typeof threeTexture.rotation !== 'undefined') {
-          threeTexture.rotation = degreesToRadians(transform.rotation);
-        }
-        if (threeTexture.center && typeof threeTexture.center.set === 'function') {
-          threeTexture.center.set(0.5, 0.5); // Rotate around center
-        }
-        if ('needsUpdate' in threeTexture) {
-          threeTexture.needsUpdate = true;
+        texture.offset.set(transform.offsetU, transform.offsetV);
+        texture.repeat.set(transform.scaleU, transform.scaleV);
+        texture.rotation = degreesToRadians(transform.rotation);
+
+        // Ensure texture rotates around center
+        texture.center.set(0.5, 0.5);
+
+        texture.needsUpdate = true;
+        targetMaterial.needsUpdate = true;
+
+        // Force re-render
+        if (viewer.updateFraming) {
+            // This method sometimes triggers a redraw
+            // viewer.updateFraming();
+            // Or just rely on the reactivity
         }
       } else {
-        console.warn('[Transform] Could not access Three.js texture object');
+        console.warn('[Transform] No texture map on material', targetMaterial.name);
       }
+
     } catch (error) {
       console.error('[Transform] Error:', error);
     }

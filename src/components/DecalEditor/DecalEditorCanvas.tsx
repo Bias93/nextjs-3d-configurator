@@ -7,6 +7,16 @@ import * as THREE from 'three';
 import type { DecalTransform, DecalEditorProps } from '@/types/decal';
 import { EditableDecal } from './EditableDecal';
 import DecalTransformPanel from './DecalTransformPanel';
+import { materialTargetMap } from '@/lib/material-utils';
+
+// Define props for the internal Model component
+interface ModelProps {
+  url: string;
+  textureUrl: string;
+  transform: DecalTransform;
+  onTransformChange: (transform: DecalTransform) => void;
+  activeSlotName?: string;
+}
 
 /**
  * Model component that loads GLB and provides mesh reference for Decal.
@@ -16,12 +26,8 @@ function Model({
   textureUrl,
   transform,
   onTransformChange,
-}: {
-  url: string;
-  textureUrl: string;
-  transform: DecalTransform;
-  onTransformChange: (transform: DecalTransform) => void;
-}) {
+  activeSlotName,
+}: ModelProps) {
   const { scene } = useGLTF(url);
   const [targetMesh, setTargetMesh] = useState<THREE.Mesh | null>(null);
   const [isSelected, setIsSelected] = useState(true);
@@ -31,17 +37,37 @@ function Model({
   // Clone scene to avoid modifying cached version
   const clonedScene = scene.clone();
 
-  // Find first mesh for decal target
+  // Find correct mesh for decal target based on slot name
   useEffect(() => {
     let found: THREE.Mesh | null = null;
-    clonedScene.traverse((child) => {
-      if (child instanceof THREE.Mesh && !found) {
-        found = child;
-        meshRef.current = child;
-      }
-    });
+
+    const targetNames = activeSlotName ? (materialTargetMap[activeSlotName] || [activeSlotName]) : [];
+
+    // First try to find by material name
+    if (activeSlotName) {
+        clonedScene.traverse((child) => {
+            if (child instanceof THREE.Mesh && child.material && !found) {
+                const mat = child.material as THREE.Material;
+                if (targetNames.some(name => mat.name.toLowerCase().includes(name.toLowerCase()))) {
+                    found = child;
+                    meshRef.current = child;
+                }
+            }
+        });
+    }
+
+    // Fallback: Find first mesh if not found
+    if (!found) {
+        clonedScene.traverse((child) => {
+        if (child instanceof THREE.Mesh && !found) {
+            found = child;
+            meshRef.current = child;
+        }
+        });
+    }
+
     setTargetMesh(found);
-  }, [url]);
+  }, [url, activeSlotName]);
 
   // Click outside to deselect
   const handlePointerMissed = useCallback(() => {
@@ -88,6 +114,11 @@ function LoadingFallback() {
   );
 }
 
+// Update DecalEditorProps to include activeSlotName
+interface ExtendedDecalEditorProps extends DecalEditorProps {
+    activeSlotName?: string;
+}
+
 /**
  * Main R3F Canvas for decal editing.
  */
@@ -98,7 +129,8 @@ export function DecalEditorCanvas({
   onTransformChange,
   onApply,
   onCancel,
-}: DecalEditorProps) {
+  activeSlotName,
+}: ExtendedDecalEditorProps) {
   const [transform, setTransform] = useState<DecalTransform>(
     initialTransform || {
       position: [0, 0, 0.1],
@@ -184,6 +216,7 @@ export function DecalEditorCanvas({
               textureUrl={textureUrl}
               transform={transform}
               onTransformChange={handleTransformChange}
+              activeSlotName={activeSlotName}
             />
           </Suspense>
         </Canvas>
