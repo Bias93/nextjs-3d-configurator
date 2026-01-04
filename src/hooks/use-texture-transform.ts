@@ -32,9 +32,10 @@ export function useTextureTransform(debounceMs: number = 16) {
 
     debounceRef.current = setTimeout(() => {
       if (pendingUpdateRef.current) {
+        const { material, transform } = pendingUpdateRef.current;
         setTransforms(prev => ({
           ...prev,
-          [pendingUpdateRef.current!.material]: pendingUpdateRef.current!.transform,
+          [material]: transform,
         }));
         pendingUpdateRef.current = null;
       }
