@@ -212,6 +212,8 @@ export const ProductViewer = forwardRef<HTMLElement, ProductViewerProps>(({
             // Ensure matrix updates are enabled for UV transforms to take effect
             texture.matrixAutoUpdate = true;
 
+            // Force update
+            texture.version++;
             texture.needsUpdate = true;
         });
 

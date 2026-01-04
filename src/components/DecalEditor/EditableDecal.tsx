@@ -109,14 +109,17 @@ export function EditableDecal({
           e.stopPropagation();
           onSelect();
         }}
+        // debug // Enable debug visualization if needed
       >
         <meshStandardMaterial
           map={texture}
           transparent
           polygonOffset
-          polygonOffsetFactor={-10}
+          polygonOffsetFactor={-1} // Reduced offset to prevent z-fighting issues
           depthTest={true}
           depthWrite={false}
+          roughness={1}
+          metalness={0}
         />
       </Decal>
     </>

@@ -61,15 +61,7 @@ function Model({
             if (!found && activeSlotName && targetNames.some(name => mat.name.toLowerCase().includes(name.toLowerCase()))) {
                 found = child;
                 meshRef.current = child;
-
-                // APPLY TEXTURE TO THE MATERIAL so user sees it "wrapped"
-                if (mat.map && texture) {
-                    mat.map = texture;
-                    mat.needsUpdate = true;
-                } else if (texture) {
-                    mat.map = texture;
-                    mat.needsUpdate = true;
-                }
+                console.log('[DecalEditor] Found target mesh:', child.name);
             }
         }
     });
