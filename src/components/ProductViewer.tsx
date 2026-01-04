@@ -206,8 +206,16 @@ export const ProductViewer = forwardRef<HTMLElement, ProductViewerProps>(({
         // Ensure texture rotates around center
         texture.center.set(0.5, 0.5);
 
+        // Ensure matrix updates are enabled for UV transforms to take effect
+        texture.matrixAutoUpdate = true;
+
         texture.needsUpdate = true;
         targetMaterial.needsUpdate = true;
+
+        // Also update emissive map if it exists and shares the texture
+        if (targetMaterial.emissiveMap === texture) {
+            targetMaterial.emissiveMap.needsUpdate = true;
+        }
 
         // Force re-render
         if (viewer.updateFraming) {
