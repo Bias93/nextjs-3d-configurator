@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState, useRef, useEffect, useMemo } from 'react';
+import { useCallback, useState, useRef, useEffect, useMemo, memo } from 'react';
 import { clsx } from 'clsx';
 
 interface TextureUploaderProps {
@@ -20,7 +20,7 @@ const TEXTURE_SLOTS = [
  * Texture upload component with drag-and-drop support.
  * Accepts JPG, PNG, and WebP image formats.
  */
-export function TextureUploader({ 
+export const TextureUploader = memo(function TextureUploader({
   onTextureSelect, 
   disabled = false,
   currentTextures,
@@ -216,6 +216,6 @@ export function TextureUploader({
       </div>
     </div>
   );
-}
+});
 
 export default TextureUploader;

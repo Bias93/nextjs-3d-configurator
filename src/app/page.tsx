@@ -10,6 +10,7 @@ import { ColorPicker } from '@/components/ColorPicker';
 import { TextureTransformPanel } from '@/components/TextureTransformPanel';
 import { useTextureTransform } from '@/hooks/use-texture-transform';
 import { useDecalTransform } from '@/hooks/use-decal-transform';
+import type { TextureTransform } from '@/types/texture-transform';
 import {
   Sidebar,
   SidebarContent,
@@ -209,6 +210,28 @@ function ConfiguratorContent({
   const { state } = useSidebar();
   const isCollapsed = state === "collapsed";
 
+  // Stable callback for TextureUploader to prevent re-renders
+  const handleTextureSelectWrapper = useCallback((url: string, file: File, slotName: string) => {
+    handleTextureSelect(url, file, slotName);
+    setActiveTextureSlot(slotName);
+  }, [handleTextureSelect, setActiveTextureSlot]);
+
+  // Stable callback for TextureTransformPanel to prevent re-renders
+  const handleTextureTransformChange = useCallback((property: keyof TextureTransform, value: number) => {
+    if (!activeTextureSlot) return;
+
+    updateTransformProperty(activeTextureSlot, property, value);
+    // Apply transform to model-viewer
+    const viewer = viewerRef.current?.querySelector('model-viewer') as any;
+    if (viewer?.applyTextureTransform) {
+      const currentTransform = getTransform(activeTextureSlot);
+      viewer.applyTextureTransform(activeTextureSlot, {
+        ...currentTransform,
+        [property]: value
+      });
+    }
+  }, [activeTextureSlot, updateTransformProperty, getTransform, viewerRef]);
+
   return (
     <div className="flex min-h-svh w-full bg-surface-950 overflow-hidden">
         
@@ -255,10 +278,7 @@ function ConfiguratorContent({
             <SidebarGroup className="p-0">
               <SidebarGroupContent className="px-2">
                 <TextureUploader 
-                  onTextureSelect={(url, file, slotName) => {
-                    handleTextureSelect(url, file, slotName);
-                    setActiveTextureSlot(slotName);
-                  }}
+                  onTextureSelect={handleTextureSelectWrapper}
                   disabled={!modelUrl}
                   currentTextures={textures}
                   availableMaterials={availableMaterials}
@@ -280,18 +300,7 @@ function ConfiguratorContent({
                     <TextureTransformPanel
                       materialName={activeTextureSlot}
                       transform={getTransform(activeTextureSlot)}
-                      onTransformChange={(property, value) => {
-                        updateTransformProperty(activeTextureSlot, property, value);
-                        // Apply transform to model-viewer
-                        const viewer = viewerRef.current?.querySelector('model-viewer') as any;
-                        if (viewer?.applyTextureTransform) {
-                          const currentTransform = getTransform(activeTextureSlot);
-                          viewer.applyTextureTransform(activeTextureSlot, {
-                            ...currentTransform,
-                            [property]: value
-                          });
-                        }
-                      }}
+                      onTransformChange={handleTextureTransformChange}
                       onReset={() => resetTransform(activeTextureSlot)}
                       disabled={!modelUrl}
                     />

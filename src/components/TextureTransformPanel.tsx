@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback } from 'react';
+import { useCallback, memo } from 'react';
 import { clsx } from 'clsx';
 import type { TextureTransform } from '@/types/texture-transform';
 import { DEFAULT_TEXTURE_TRANSFORM, TRANSFORM_LIMITS } from '@/types/texture-transform';
@@ -21,7 +21,7 @@ interface TextureTransformPanelProps {
 /**
  * Panel with sliders for adjusting texture UV offset, scale, and rotation.
  */
-export function TextureTransformPanel({
+export const TextureTransformPanel = memo(function TextureTransformPanel({
   materialName,
   transform,
   onTransformChange,
@@ -181,6 +181,6 @@ export function TextureTransformPanel({
       </div>
     </div>
   );
-}
+});
 
 export default TextureTransformPanel;
