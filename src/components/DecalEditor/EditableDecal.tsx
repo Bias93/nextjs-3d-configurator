@@ -115,6 +115,7 @@ export function EditableDecal({
         <meshStandardMaterial
           map={texture}
           transparent
+          opacity={1.0}
           polygonOffset
           polygonOffsetFactor={-10}
           depthTest={false}

@@ -62,16 +62,6 @@ function Model({
                 found = child;
                 meshRef.current = child;
                 console.log('[DecalEditor] Found target mesh:', child.name);
-
-                // APPLY TEXTURE TO THE MATERIAL so user sees it "wrapped" as requested
-                // This ensures the user sees the texture on the model immediately
-                if (texture) {
-                    mat.map = texture;
-                    // Ensure the texture is visible and not affected by previous transforms that might hide it
-                    texture.offset.set(0, 0);
-                    texture.repeat.set(1, 1);
-                    mat.needsUpdate = true;
-                }
             }
         }
     });
