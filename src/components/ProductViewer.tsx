@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback, forwardRef } from 'react';
+import { useEffect, useRef, useState, useCallback, forwardRef, memo } from 'react';
 import type { TextureTransform } from '@/types/texture-transform';
 import { DEFAULT_TEXTURE_TRANSFORM } from '@/types/texture-transform';
 
@@ -20,7 +20,7 @@ function degreesToRadians(degrees: number): number {
   return (degrees * Math.PI) / 180;
 }
 
-export const ProductViewer = forwardRef<HTMLElement, ProductViewerProps>(({
+export const ProductViewer = memo(forwardRef<HTMLElement, ProductViewerProps>(({
   modelSrc,
   poster,
   alt = '3D Product Model',
@@ -325,7 +325,7 @@ export const ProductViewer = forwardRef<HTMLElement, ProductViewerProps>(({
       )}
     </div>
   );
-});
+}));
 
 ProductViewer.displayName = 'ProductViewer';
 
