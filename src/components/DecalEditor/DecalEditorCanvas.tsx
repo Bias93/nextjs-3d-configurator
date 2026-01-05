@@ -76,6 +76,38 @@ function Model({
         });
     }
 
+    // Auto-center the decal on the found mesh
+    if (found) {
+        // Cast to Mesh to ensure geometry access is typed correctly
+        const mesh = found as THREE.Mesh;
+        if (mesh.geometry) {
+            mesh.geometry.computeBoundingBox();
+            const box = mesh.geometry.boundingBox;
+            if (box) {
+                const center = new THREE.Vector3();
+                box.getCenter(center);
+
+                // Transform center to world space if needed (but we are in local space of primitive)
+                // Actually, Decal expects world position if the mesh is in the scene,
+                // but here 'EditableDecal' uses the meshRef to project.
+
+                // If the user hasn't edited the position yet (it's at 0,0,0.1 default), move it to center
+                const isDefault = transform.position[0] === 0 && transform.position[1] === 0 && transform.position[2] === 0.1;
+
+                if (isDefault) {
+                    // Heuristic: Move to center + slight Z or Y offset depending on bounds
+                    // For a shirt/product, center is usually inside, so we need to project OUT.
+                    // But without normal data, center is the safest starting point.
+                    console.log('[DecalEditor] Auto-centering decal at:', center);
+                    onTransformChange({
+                        ...transform,
+                        position: [center.x, center.y, center.z + (box.max.z - center.z) + 0.05], // Move to front face
+                    });
+                }
+            }
+        }
+    }
+
     setTargetMesh(found);
   }, [url, activeSlotName, texture]);
 

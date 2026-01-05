@@ -209,12 +209,19 @@ export const ProductViewer = forwardRef<HTMLElement, ProductViewerProps>(({
             // Ensure texture rotates around center
             texture.center.set(0.5, 0.5);
 
+            // Ensure texture wrapping is enabled so scaling works
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.wrapT = THREE.RepeatWrapping;
+
             // Ensure matrix updates are enabled for UV transforms to take effect
             texture.matrixAutoUpdate = true;
 
             // Force update
             texture.version++;
             texture.needsUpdate = true;
+
+            // Manually update the matrix if auto-update fails for some reason
+            texture.updateMatrix();
         });
 
         targetMaterial.needsUpdate = true;
