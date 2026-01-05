@@ -1,7 +1,7 @@
 'use client';
 
 import { Suspense, useRef, useState, useEffect, useCallback } from 'react';
-import { Canvas, useThree, useLoader } from '@react-three/fiber';
+import { Canvas, useThree, useLoader, createPortal } from '@react-three/fiber';
 import { OrbitControls, useGLTF, Environment, Center, useTexture } from '@react-three/drei';
 import * as THREE from 'three';
 import type { DecalTransform, DecalEditorProps } from '@/types/decal';
@@ -88,29 +88,16 @@ function Model({
 
     setTargetMesh(found);
 
-    // Auto-center logic
+    // With Portal approach, we don't need complex auto-centering relative to world.
+    // We just need to ensure Z is slightly offset from the mesh surface (local Z).
     if (found) {
-         // Cast to Mesh to ensure geometry access is typed correctly
-        const mesh = found as THREE.Mesh;
-        if (mesh.geometry) {
-            mesh.geometry.computeBoundingBox();
-            const box = mesh.geometry.boundingBox;
-            if (box) {
-                const center = new THREE.Vector3();
-                box.getCenter(center);
-
-                // If this is a fresh session or default transform, snap to center
-                const isDefault = transform.position[0] === 0 && transform.position[1] === 0 && transform.position[2] === 0.1;
-
-                if (isDefault) {
-                     console.log('[DecalEditor] Auto-centering decal at:', center);
-                     // We need to notify parent to update state
-                     onTransformChange({
-                         ...transform,
-                         position: [center.x, center.y, center.z + (box.max.z - center.z) + 0.05],
-                     });
-                }
-            }
+        const isDefault = transform.position[0] === 0 && transform.position[1] === 0 && transform.position[2] === 0.1;
+        if (isDefault) {
+             // Reset to local origin with slight offset
+             onTransformChange({
+                 ...transform,
+                 position: [0, 0, 0.05],
+             });
         }
     }
   }, [url, activeSlotName, texture]);
@@ -134,15 +121,17 @@ function Model({
         onClick={() => setIsSelected(true)}
       />
       
-      {targetMesh && meshRef.current && (
+      {/* Use Portal to render the Decal INSIDE the target mesh's coordinate space */}
+      {targetMesh && meshRef.current && createPortal(
         <EditableDecal
-          meshRef={meshRef}
+          meshRef={meshRef} // Pass ref just in case, but portal handles parenting
           textureUrl={textureUrl}
           transform={transform}
           onTransformChange={onTransformChange}
           isSelected={isSelected}
           onSelect={() => setIsSelected(true)}
-        />
+        />,
+        targetMesh
       )}
     </Center>
   );

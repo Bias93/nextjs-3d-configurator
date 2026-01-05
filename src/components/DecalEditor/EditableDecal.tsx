@@ -101,7 +101,7 @@ export function EditableDecal({
 
       {/* The actual Decal rendered on the mesh */}
       <Decal
-        mesh={meshRef as any}
+        // mesh={meshRef as any} // Removed: Portal handles context
         position={position}
         rotation={rotation}
         scale={transform.scale}
