@@ -16,6 +16,10 @@ const TEXTURE_SLOTS = [
   { id: 'logo_3', label: 'Logo 3' },
 ];
 
+// Security: Strict validation for user uploads
+const MAX_TEXTURE_SIZE = 10 * 1024 * 1024; // 10MB
+const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
 /**
  * Texture upload component with drag-and-drop support.
  * Accepts JPG, PNG, and WebP image formats.
@@ -54,8 +58,13 @@ export function TextureUploader({
   }, [mode, availableMaterials, selectedSlot]);
 
   const processFile = useCallback((file: File) => {
-    if (!file.type.startsWith('image/')) {
-      alert('Please select an image file (JPG, PNG, WebP)');
+    if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+      alert('Invalid file type. Please upload JPG, PNG, or WebP.');
+      return;
+    }
+
+    if (file.size > MAX_TEXTURE_SIZE) {
+      alert(`File too large. Maximum size is ${MAX_TEXTURE_SIZE / 1024 / 1024}MB.`);
       return;
     }
 
