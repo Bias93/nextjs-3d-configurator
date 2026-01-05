@@ -101,11 +101,12 @@ export function EditableDecal({
 
       {/* The actual Decal rendered on the mesh */}
       <Decal
-        // mesh={meshRef as any} // Removed: Portal handles context
+        mesh={meshRef as any}
         position={position}
         rotation={rotation}
         scale={transform.scale}
         renderOrder={100}
+        debug // Enable debug box to visualize projection
         onClick={(e) => {
           e.stopPropagation();
           onSelect();
@@ -116,9 +117,9 @@ export function EditableDecal({
           transparent
           polygonOffset
           polygonOffsetFactor={-10}
-          depthTest={false} // Disable depth test to ensure visibility
+          depthTest={false}
           depthWrite={false}
-          side={THREE.DoubleSide} // Ensure visibility from all angles
+          side={THREE.DoubleSide}
         />
       </Decal>
     </>

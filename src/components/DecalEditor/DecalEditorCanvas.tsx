@@ -1,7 +1,7 @@
 'use client';
 
 import { Suspense, useRef, useState, useEffect, useCallback } from 'react';
-import { Canvas, useThree, useLoader, createPortal } from '@react-three/fiber';
+import { Canvas, useThree, useLoader } from '@react-three/fiber';
 import { OrbitControls, useGLTF, Environment, Center, useTexture } from '@react-three/drei';
 import * as THREE from 'three';
 import type { DecalTransform, DecalEditorProps } from '@/types/decal';
@@ -88,16 +88,43 @@ function Model({
 
     setTargetMesh(found);
 
-    // With Portal approach, we don't need complex auto-centering relative to world.
-    // We just need to ensure Z is slightly offset from the mesh surface (local Z).
+    // Auto-center logic in WORLD space
     if (found) {
-        const isDefault = transform.position[0] === 0 && transform.position[1] === 0 && transform.position[2] === 0.1;
-        if (isDefault) {
-             // Reset to local origin with slight offset
-             onTransformChange({
-                 ...transform,
-                 position: [0, 0, 0.05],
-             });
+        const mesh = found as THREE.Mesh;
+        if (mesh.geometry) {
+            // Ensure world matrix is up to date
+            mesh.updateMatrixWorld(true);
+
+            mesh.geometry.computeBoundingBox();
+            const aabb = mesh.geometry.boundingBox;
+
+            if (aabb) {
+                // Convert bounds to world space
+                const worldBox = new THREE.Box3().copy(aabb).applyMatrix4(mesh.matrixWorld);
+                const center = new THREE.Vector3();
+                worldBox.getCenter(center);
+                const size = new THREE.Vector3();
+                worldBox.getSize(size);
+
+                // If this is a fresh session or default transform, snap to center
+                // We compare against default values
+                const isDefault = transform.position[0] === 0 && transform.position[1] === 0 && transform.position[2] === 0.1;
+
+                if (isDefault) {
+                     console.log('[DecalEditor] Auto-centering decal at World Center:', center);
+
+                     // Move slightly along the largest normal or just Z+ relative to bounds?
+                     // Heuristic: Center + slight Z offset based on bounding box depth
+                     // Note: We are using OrbitControls around Center, so 0,0,0 is roughly the center of the scene.
+
+                     onTransformChange({
+                         ...transform,
+                         position: [center.x, center.y, center.z + (size.z * 0.5) + 0.05],
+                         // Adjust scale to fit the mesh nicely (e.g., 60% of width)
+                         scale: Math.min(size.x, size.y) * 0.6,
+                     });
+                }
+            }
         }
     }
   }, [url, activeSlotName, texture]);
@@ -121,17 +148,15 @@ function Model({
         onClick={() => setIsSelected(true)}
       />
       
-      {/* Use Portal to render the Decal INSIDE the target mesh's coordinate space */}
-      {targetMesh && meshRef.current && createPortal(
+      {targetMesh && meshRef.current && (
         <EditableDecal
-          meshRef={meshRef} // Pass ref just in case, but portal handles parenting
+          meshRef={meshRef}
           textureUrl={textureUrl}
           transform={transform}
           onTransformChange={onTransformChange}
           isSelected={isSelected}
           onSelect={() => setIsSelected(true)}
-        />,
-        targetMesh
+        />
       )}
     </Center>
   );
