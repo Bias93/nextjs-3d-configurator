@@ -98,6 +98,13 @@ export function TextureUploader({
     if (!disabled) inputRef.current?.click();
   }, [disabled]);
 
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (disabled) return;
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleClick();
+    }
+  }, [disabled, handleClick]);
 
   const currentSlotTexture = currentTextures ? currentTextures[selectedSlot] : null;
 
@@ -147,12 +154,14 @@ export function TextureUploader({
 
       <div
         onClick={handleClick}
+        onKeyDown={handleKeyDown}
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         className={clsx(
           'relative rounded-lg border-2 border-dashed transition-all duration-200',
           'flex flex-col items-center justify-center min-h-[140px]',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500',
           disabled
             ? 'opacity-50 cursor-not-allowed border-surface-700 bg-surface-900/50'
             : 'group/texture cursor-pointer border-surface-700 bg-surface-900/50 hover:border-surface-500 hover:bg-surface-800/50',
