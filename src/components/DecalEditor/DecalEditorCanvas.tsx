@@ -62,6 +62,12 @@ function Model({
                 found = child;
                 meshRef.current = child;
                 console.log('[DecalEditor] Found target mesh:', child.name);
+
+                // APPLY TEXTURE TO THE MATERIAL so user sees it "wrapped" as requested
+                if (texture) {
+                    mat.map = texture;
+                    mat.needsUpdate = true;
+                }
             }
         }
     });

@@ -105,6 +105,7 @@ export function EditableDecal({
         position={position}
         rotation={rotation}
         scale={transform.scale}
+        renderOrder={100}
         onClick={(e) => {
           e.stopPropagation();
           onSelect();
@@ -115,7 +116,7 @@ export function EditableDecal({
           transparent
           polygonOffset
           polygonOffsetFactor={-10}
-          depthTest={true}
+          depthTest={false} // Disable depth test to ensure visibility
           depthWrite={false}
         />
       </Decal>
