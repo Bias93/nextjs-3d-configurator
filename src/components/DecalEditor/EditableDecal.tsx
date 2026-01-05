@@ -92,10 +92,10 @@ export function EditableDecal({
         onDrag={handleDrag}
         activeAxes={[true, true, true]}
       >
-        {/* Invisible helper mesh for the gizmo to attach to */}
-        <mesh visible={false}>
-          <planeGeometry args={[0.1, 0.1]} />
-          <meshBasicMaterial transparent opacity={0} />
+        {/* Helper mesh for visual feedback of position */}
+        <mesh>
+          <sphereGeometry args={[0.05, 16, 16]} />
+          <meshBasicMaterial color="yellow" wireframe depthTest={false} />
         </mesh>
       </PivotControls>
 
@@ -118,6 +118,7 @@ export function EditableDecal({
           polygonOffsetFactor={-10}
           depthTest={false} // Disable depth test to ensure visibility
           depthWrite={false}
+          side={THREE.DoubleSide} // Ensure visibility from all angles
         />
       </Decal>
     </>
