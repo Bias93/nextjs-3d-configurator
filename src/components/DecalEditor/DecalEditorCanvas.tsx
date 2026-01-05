@@ -77,6 +77,32 @@ function Model({
     }
 
     setTargetMesh(found);
+
+    // Auto-center logic
+    if (found) {
+         // Cast to Mesh to ensure geometry access is typed correctly
+        const mesh = found as THREE.Mesh;
+        if (mesh.geometry) {
+            mesh.geometry.computeBoundingBox();
+            const box = mesh.geometry.boundingBox;
+            if (box) {
+                const center = new THREE.Vector3();
+                box.getCenter(center);
+
+                // If this is a fresh session or default transform, snap to center
+                const isDefault = transform.position[0] === 0 && transform.position[1] === 0 && transform.position[2] === 0.1;
+
+                if (isDefault) {
+                     console.log('[DecalEditor] Auto-centering decal at:', center);
+                     // We need to notify parent to update state
+                     onTransformChange({
+                         ...transform,
+                         position: [center.x, center.y, center.z + (box.max.z - center.z) + 0.05],
+                     });
+                }
+            }
+        }
+    }
   }, [url, activeSlotName, texture]);
 
   // Click outside to deselect
