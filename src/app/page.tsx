@@ -10,6 +10,7 @@ import { ColorPicker } from '@/components/ColorPicker';
 import { TextureTransformPanel } from '@/components/TextureTransformPanel';
 import { useTextureTransform } from '@/hooks/use-texture-transform';
 import { useDecalTransform } from '@/hooks/use-decal-transform';
+import { useViewerShortcuts } from '@/hooks/use-viewer-shortcuts';
 import type { TextureTransform } from '@/types/texture-transform';
 import {
   Sidebar,
@@ -76,6 +77,47 @@ export default function ConfiguratorPage() {
   // Decal transform hook for 3D positioning
   const decal = useDecalTransform();
 
+  const handleScreenshot = useCallback(() => {
+    const viewer = viewerRef.current?.querySelector('model-viewer') as any;
+    if (!viewer) return;
+
+    const dataUrl = viewer.toDataURL('image/png');
+    const link = document.createElement('a');
+    link.download = `configuration-${Date.now()}.png`;
+    link.href = dataUrl;
+    link.click();
+  }, []);
+
+  const handleReset = useCallback(() => {
+    const viewer = viewerRef.current?.querySelector('model-viewer') as any;
+    if (viewer) {
+      viewer.cameraOrbit = '45deg 65deg 105%';
+      viewer.updateFraming?.();
+    }
+  }, []);
+
+  const handleToggleAutoRotate = useCallback(() => {
+    setIsAutoRotating(prev => {
+      const viewer = viewerRef.current?.querySelector('model-viewer') as any;
+      if (viewer) {
+        viewer.autoRotate = !prev;
+      }
+      return !prev;
+    });
+  }, []);
+
+  const handleToggleFocus = useCallback(() => {
+    setIsFocusMode(prev => !prev);
+  }, []);
+
+  // Keyboard shortcuts
+  useViewerShortcuts({
+    onToggleAutoRotate: handleToggleAutoRotate,
+    onReset: handleReset,
+    onScreenshot: handleScreenshot,
+    onToggleFocus: handleToggleFocus,
+    hasModel: !!modelUrl,
+  });
 
   useEffect(() => {
     const checkAR = () => {
@@ -116,35 +158,6 @@ export default function ConfiguratorPage() {
     setTextureApplied(true);
   }, []);
 
-  const handleScreenshot = useCallback(() => {
-    const viewer = viewerRef.current?.querySelector('model-viewer') as any;
-    if (!viewer) return;
-
-    const dataUrl = viewer.toDataURL('image/png');
-    const link = document.createElement('a');
-    link.download = `configuration-${Date.now()}.png`;
-    link.href = dataUrl;
-    link.click();
-  }, []);
-
-  const handleReset = useCallback(() => {
-    const viewer = viewerRef.current?.querySelector('model-viewer') as any;
-    if (viewer) {
-      viewer.cameraOrbit = '45deg 65deg 105%';
-      viewer.updateFraming?.();
-    }
-  }, []);
-
-  const handleToggleAutoRotate = useCallback(() => {
-    setIsAutoRotating(prev => {
-      const viewer = viewerRef.current?.querySelector('model-viewer') as any;
-      if (viewer) {
-        viewer.autoRotate = !prev;
-      }
-      return !prev;
-    });
-  }, []);
-
   const handleActivateAR = useCallback(() => {
     const viewer = viewerRef.current?.querySelector('model-viewer') as any;
     if (viewer?.activateAR) {
@@ -154,10 +167,6 @@ export default function ConfiguratorPage() {
 
   const handleARStatusChange = useCallback((status: string) => {
     setArStatus(status);
-  }, []);
-
-  const handleToggleFocus = useCallback(() => {
-    setIsFocusMode(prev => !prev);
   }, []);
 
   return (

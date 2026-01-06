@@ -44,8 +44,8 @@ export const ViewerControls = memo(function ViewerControls({
         onClick={onToggleAutoRotate}
         disabled={!hasModel}
         className={clsx(buttonStyle, isAutoRotating && 'text-accent-400 bg-accent-400/10 border-accent-400/30')}
-        title={isAutoRotating ? 'Stop rotation' : 'Start rotation'}
-        aria-label={isAutoRotating ? 'Stop rotation' : 'Start rotation'}
+        title={isAutoRotating ? 'Stop rotation (Space)' : 'Start rotation (Space)'}
+        aria-label={isAutoRotating ? 'Stop rotation (Space)' : 'Start rotation (Space)'}
         aria-pressed={isAutoRotating}
       >
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -57,8 +57,8 @@ export const ViewerControls = memo(function ViewerControls({
         onClick={onReset}
         disabled={!hasModel}
         className={buttonStyle}
-        title="Reset view"
-        aria-label="Reset view"
+        title="Reset view (R)"
+        aria-label="Reset view (R)"
       >
         <svg className="w-5 h-5 text-surface-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -69,8 +69,8 @@ export const ViewerControls = memo(function ViewerControls({
         onClick={onScreenshot}
         disabled={!hasModel}
         className={buttonStyle}
-        title="Save screenshot"
-        aria-label="Save screenshot"
+        title="Save screenshot (S)"
+        aria-label="Save screenshot (S)"
       >
         <svg className="w-5 h-5 text-surface-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
@@ -81,8 +81,8 @@ export const ViewerControls = memo(function ViewerControls({
       <button
         onClick={onToggleFocus}
         className={clsx(buttonStyle, isFocusMode && 'text-accent-400 bg-accent-400/10 border-accent-400/30')}
-        title={isFocusMode ? 'Show UI' : 'Hide UI (Focus Mode)'}
-        aria-label={isFocusMode ? 'Show UI' : 'Hide UI (Focus Mode)'}
+        title={isFocusMode ? 'Show UI (F)' : 'Hide UI (Focus Mode) (F)'}
+        aria-label={isFocusMode ? 'Show UI (F)' : 'Hide UI (Focus Mode) (F)'}
         aria-pressed={isFocusMode}
       >
         {isFocusMode ? (
