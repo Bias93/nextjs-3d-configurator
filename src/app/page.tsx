@@ -63,6 +63,9 @@ export default function ConfiguratorPage() {
   const [activeTextureSlot, setActiveTextureSlot] = useState<string | null>(null);
   
   const viewerRef = useRef<HTMLDivElement>(null);
+  // Keep track of texture URLs to revoke them when replaced or unmounted (Memory Optimization)
+  const textureUrlsRef = useRef<Record<string, string>>({});
+
   const [canAR, setCanAR] = useState(false);
   const [arStatus, setArStatus] = useState<string>('not-presenting');
 
@@ -84,6 +87,14 @@ export default function ConfiguratorPage() {
       setCanAR(isARCapable);
     };
     checkAR();
+
+    // Cleanup texture URLs on unmount to prevent memory leaks
+    return () => {
+      Object.values(textureUrlsRef.current).forEach(url => {
+        URL.revokeObjectURL(url);
+      });
+      textureUrlsRef.current = {};
+    };
   }, []);
 
   const handleModelSelect = useCallback((url: string, fileName: string) => {
@@ -101,6 +112,13 @@ export default function ConfiguratorPage() {
   }, []);
 
   const handleTextureSelect = useCallback((url: string, file: File, slotName: string) => {
+    // Revoke previous texture URL for this slot to avoid memory leaks
+    const previousUrl = textureUrlsRef.current[slotName];
+    if (previousUrl) {
+      URL.revokeObjectURL(previousUrl);
+    }
+    textureUrlsRef.current[slotName] = url;
+
     setTextures(prev => ({
       ...prev,
       [slotName]: url
