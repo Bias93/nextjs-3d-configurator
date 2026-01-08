@@ -170,24 +170,33 @@ export function ModelUploader({
           }
         }
 
+        // Security: Process files sequentially to prevent memory exhaustion (DoS)
+        const entries: { path: string; entry: JSZip.JSZipObject }[] = [];
         zipContent.forEach((relativePath, zipEntry) => {
           if (!zipEntry.dir) {
-            const promise = zipEntry.async('blob').then(blob => {
-              totalSize += blob.size;
-              if (totalSize > MAX_ZIP_TOTAL_SIZE) {
-                throw new Error(`Total extracted size exceeds limit (${MAX_ZIP_TOTAL_SIZE / 1024 / 1024}MB)`);
-              }
-
-              const filename = relativePath.split('/').pop() || relativePath;
-              const file = new File([blob], filename, { type: blob.type });
-              extractedFiles.push(file);
-              console.log(`  - Extracted: ${filename}`);
-            });
-            extractionPromises.push(promise);
+            entries.push({ path: relativePath, entry: zipEntry });
           }
         });
 
-        await Promise.all(extractionPromises);
+        for (const { path, entry } of entries) {
+          const blob = await entry.async('blob');
+          totalSize += blob.size;
+
+          if (totalSize > MAX_ZIP_TOTAL_SIZE) {
+            throw new Error(`Total extracted size exceeds limit (${MAX_ZIP_TOTAL_SIZE / 1024 / 1024}MB)`);
+          }
+
+          const filename = path.split('/').pop() || path;
+          // Security: Validate file name length to prevent potential UI issues
+          if (filename.length > 255) {
+            console.warn(`Skipping file with overly long filename: ${filename.substring(0, 20)}...`);
+            continue;
+          }
+
+          const file = new File([blob], filename, { type: blob.type });
+          extractedFiles.push(file);
+          console.log(`  - Extracted: ${filename}`);
+        }
         
 
         await processFiles(extractedFiles);
