@@ -3,6 +3,7 @@
 import { useCallback, useState, useRef } from 'react';
 import { clsx } from 'clsx';
 import JSZip from 'jszip';
+import { isSafeFilename, sanitizeString, safeJsonParse } from '@/lib/security';
 
 interface ModelUploaderProps {
   onModelSelect: (modelUrl: string, fileName: string) => void;
@@ -24,7 +25,10 @@ interface PatchResult {
 
 const patchGltfContent = async (gltfFile: File, resources: Map<string, File>): Promise<PatchResult> => {
   const text = await gltfFile.text();
-  const json = JSON.parse(text);
+  const json = safeJsonParse<any>(text);
+  if (!json) {
+    throw new Error('Invalid GLTF JSON content');
+  }
   const missing: string[] = [];
 
   const getResource = (uri: string): File | undefined => {
@@ -179,6 +183,12 @@ export function ModelUploader({
               }
 
               const filename = relativePath.split('/').pop() || relativePath;
+
+              // Security: Check for unsafe characters in filename
+              if (!isSafeFilename(filename)) {
+                throw new Error(`Unsafe filename detected: "${filename}". Please use only alphanumeric characters, dots, dashes, and underscores.`);
+              }
+
               const file = new File([blob], filename, { type: blob.type });
               extractedFiles.push(file);
               console.log(`  - Extracted: ${filename}`);
@@ -236,7 +246,7 @@ export function ModelUploader({
 
 
       setTimeout(() => {
-        onModelSelect(url, name);
+        onModelSelect(url, sanitizeString(name));
         setIsLoading(false);
       }, 300);
 
