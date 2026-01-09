@@ -232,6 +232,13 @@ function ConfiguratorContent({
     }
   }, [activeTextureSlot, updateTransformProperty, getTransform, viewerRef]);
 
+  // Stable callback for resetting texture transform
+  const handleResetTransform = useCallback(() => {
+    if (activeTextureSlot) {
+      resetTransform(activeTextureSlot);
+    }
+  }, [activeTextureSlot, resetTransform]);
+
   return (
     <div className="flex min-h-svh w-full bg-surface-950 overflow-hidden">
         
@@ -301,7 +308,7 @@ function ConfiguratorContent({
                       materialName={activeTextureSlot}
                       transform={getTransform(activeTextureSlot)}
                       onTransformChange={handleTextureTransformChange}
-                      onReset={() => resetTransform(activeTextureSlot)}
+                      onReset={handleResetTransform}
                       disabled={!modelUrl}
                     />
                     
