@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, memo } from 'react';
 import { clsx } from 'clsx';
 import dynamic from 'next/dynamic';
 import { ModelUploader } from '@/components/ModelUploader';
@@ -49,154 +49,7 @@ const DecalEditorCanvas = dynamic(
   { ssr: false }
 );
 
-/**
- * Main 3D product configurator page.
- */
-export default function ConfiguratorPage() {
-  const [modelUrl, setModelUrl] = useState<string | null>(null);
-  const [modelName, setModelName] = useState<string | null>(null);
-  const [textures, setTextures] = useState<Record<string, string>>({});
-  const [availableMaterials, setAvailableMaterials] = useState<string[]>([]);
-  const [isAutoRotating, setIsAutoRotating] = useState(false);
-  const [textureApplied, setTextureApplied] = useState(false);
-  const [isFocusMode, setIsFocusMode] = useState(false);
-  const [activeTextureSlot, setActiveTextureSlot] = useState<string | null>(null);
-  
-  const viewerRef = useRef<HTMLDivElement>(null);
-  const [canAR, setCanAR] = useState(false);
-  const [arStatus, setArStatus] = useState<string>('not-presenting');
-
-  // Texture transform hook for adjusting UV offset/scale/rotation
-  const {
-    getTransform,
-    updateProperty: updateTransformProperty,
-    resetTransform,
-  } = useTextureTransform();
-
-  // Decal transform hook for 3D positioning
-  const decal = useDecalTransform();
-
-
-  useEffect(() => {
-    const checkAR = () => {
-      const isARCapable = 'xr' in navigator || 
-        /Android|iPhone|iPad/i.test(navigator.userAgent);
-      setCanAR(isARCapable);
-    };
-    checkAR();
-  }, []);
-
-  const handleModelSelect = useCallback((url: string, fileName: string) => {
-    if (modelUrl) URL.revokeObjectURL(modelUrl);
-    setModelUrl(url);
-    setModelName(fileName);
-    setTextures({});
-    setTextureApplied(false);
-    setAvailableMaterials([]);
-  }, [modelUrl]);
-
-  const handleMaterialsLoaded = useCallback((materials: string[]) => {
-    setAvailableMaterials(materials);
-    console.log('Materials loaded:', materials);
-  }, []);
-
-  const handleTextureSelect = useCallback((url: string, file: File, slotName: string) => {
-    setTextures(prev => ({
-      ...prev,
-      [slotName]: url
-    }));
-    
-    const viewer = viewerRef.current?.querySelector('model-viewer') as any;
-    if (viewer?.applyCustomTexture) {
-      viewer.applyCustomTexture(url, slotName);
-    }
-  }, []);
-
-  const handleTextureApplied = useCallback(() => {
-    setTextureApplied(true);
-  }, []);
-
-  const handleScreenshot = useCallback(() => {
-    const viewer = viewerRef.current?.querySelector('model-viewer') as any;
-    if (!viewer) return;
-
-    const dataUrl = viewer.toDataURL('image/png');
-    const link = document.createElement('a');
-    link.download = `configuration-${Date.now()}.png`;
-    link.href = dataUrl;
-    link.click();
-  }, []);
-
-  const handleReset = useCallback(() => {
-    const viewer = viewerRef.current?.querySelector('model-viewer') as any;
-    if (viewer) {
-      viewer.cameraOrbit = '45deg 65deg 105%';
-      viewer.updateFraming?.();
-    }
-  }, []);
-
-  const handleToggleAutoRotate = useCallback(() => {
-    setIsAutoRotating(prev => {
-      const viewer = viewerRef.current?.querySelector('model-viewer') as any;
-      if (viewer) {
-        viewer.autoRotate = !prev;
-      }
-      return !prev;
-    });
-  }, []);
-
-  const handleActivateAR = useCallback(() => {
-    const viewer = viewerRef.current?.querySelector('model-viewer') as any;
-    if (viewer?.activateAR) {
-      viewer.activateAR();
-    }
-  }, []);
-
-  const handleARStatusChange = useCallback((status: string) => {
-    setArStatus(status);
-  }, []);
-
-  const handleToggleFocus = useCallback(() => {
-    setIsFocusMode(prev => !prev);
-  }, []);
-
-  return (
-    <SidebarProvider defaultOpen={true} className="dark">
-      <ConfiguratorContent 
-        modelUrl={modelUrl}
-        modelName={modelName}
-        textures={textures}
-        availableMaterials={availableMaterials}
-        textureApplied={textureApplied}
-        handleModelSelect={handleModelSelect}
-        handleMaterialsLoaded={handleMaterialsLoaded}
-        handleTextureSelect={handleTextureSelect}
-        handleTextureApplied={handleTextureApplied}
-        handleARStatusChange={handleARStatusChange}
-        arStatus={arStatus}
-        isFocusMode={isFocusMode}
-        handleToggleFocus={handleToggleFocus}
-        isAutoRotating={isAutoRotating}
-        handleScreenshot={handleScreenshot}
-        handleReset={handleReset}
-        handleToggleAutoRotate={handleToggleAutoRotate}
-        handleActivateAR={handleActivateAR}
-        canAR={canAR}
-        viewerRef={viewerRef}
-        // Texture transform props
-        activeTextureSlot={activeTextureSlot}
-        setActiveTextureSlot={setActiveTextureSlot}
-        getTransform={getTransform}
-        updateTransformProperty={updateTransformProperty}
-        resetTransform={resetTransform}
-        // Decal editor
-        decal={decal}
-      />
-    </SidebarProvider>
-  );
-}
-
-function ConfiguratorContent({ 
+const ConfiguratorContent = memo(function ConfiguratorContent({
   modelUrl, modelName, textures, availableMaterials, textureApplied, 
   handleModelSelect, handleMaterialsLoaded, handleTextureSelect, handleTextureApplied,
   handleARStatusChange, arStatus, isFocusMode, handleToggleFocus,
@@ -489,5 +342,152 @@ function ConfiguratorContent({
           />
         )}
       </div>
+  );
+});
+
+/**
+ * Main 3D product configurator page.
+ */
+export default function ConfiguratorPage() {
+  const [modelUrl, setModelUrl] = useState<string | null>(null);
+  const [modelName, setModelName] = useState<string | null>(null);
+  const [textures, setTextures] = useState<Record<string, string>>({});
+  const [availableMaterials, setAvailableMaterials] = useState<string[]>([]);
+  const [isAutoRotating, setIsAutoRotating] = useState(false);
+  const [textureApplied, setTextureApplied] = useState(false);
+  const [isFocusMode, setIsFocusMode] = useState(false);
+  const [activeTextureSlot, setActiveTextureSlot] = useState<string | null>(null);
+
+  const viewerRef = useRef<HTMLDivElement>(null);
+  const [canAR, setCanAR] = useState(false);
+  const [arStatus, setArStatus] = useState<string>('not-presenting');
+
+  // Texture transform hook for adjusting UV offset/scale/rotation
+  const {
+    getTransform,
+    updateProperty: updateTransformProperty,
+    resetTransform,
+  } = useTextureTransform();
+
+  // Decal transform hook for 3D positioning
+  const decal = useDecalTransform();
+
+
+  useEffect(() => {
+    const checkAR = () => {
+      const isARCapable = 'xr' in navigator ||
+        /Android|iPhone|iPad/i.test(navigator.userAgent);
+      setCanAR(isARCapable);
+    };
+    checkAR();
+  }, []);
+
+  const handleModelSelect = useCallback((url: string, fileName: string) => {
+    if (modelUrl) URL.revokeObjectURL(modelUrl);
+    setModelUrl(url);
+    setModelName(fileName);
+    setTextures({});
+    setTextureApplied(false);
+    setAvailableMaterials([]);
+  }, [modelUrl]);
+
+  const handleMaterialsLoaded = useCallback((materials: string[]) => {
+    setAvailableMaterials(materials);
+    console.log('Materials loaded:', materials);
+  }, []);
+
+  const handleTextureSelect = useCallback((url: string, file: File, slotName: string) => {
+    setTextures(prev => ({
+      ...prev,
+      [slotName]: url
+    }));
+
+    const viewer = viewerRef.current?.querySelector('model-viewer') as any;
+    if (viewer?.applyCustomTexture) {
+      viewer.applyCustomTexture(url, slotName);
+    }
+  }, []);
+
+  const handleTextureApplied = useCallback(() => {
+    setTextureApplied(true);
+  }, []);
+
+  const handleScreenshot = useCallback(() => {
+    const viewer = viewerRef.current?.querySelector('model-viewer') as any;
+    if (!viewer) return;
+
+    const dataUrl = viewer.toDataURL('image/png');
+    const link = document.createElement('a');
+    link.download = `configuration-${Date.now()}.png`;
+    link.href = dataUrl;
+    link.click();
+  }, []);
+
+  const handleReset = useCallback(() => {
+    const viewer = viewerRef.current?.querySelector('model-viewer') as any;
+    if (viewer) {
+      viewer.cameraOrbit = '45deg 65deg 105%';
+      viewer.updateFraming?.();
+    }
+  }, []);
+
+  const handleToggleAutoRotate = useCallback(() => {
+    setIsAutoRotating(prev => {
+      const viewer = viewerRef.current?.querySelector('model-viewer') as any;
+      if (viewer) {
+        viewer.autoRotate = !prev;
+      }
+      return !prev;
+    });
+  }, []);
+
+  const handleActivateAR = useCallback(() => {
+    const viewer = viewerRef.current?.querySelector('model-viewer') as any;
+    if (viewer?.activateAR) {
+      viewer.activateAR();
+    }
+  }, []);
+
+  const handleARStatusChange = useCallback((status: string) => {
+    setArStatus(status);
+  }, []);
+
+  const handleToggleFocus = useCallback(() => {
+    setIsFocusMode(prev => !prev);
+  }, []);
+
+  return (
+    <SidebarProvider defaultOpen={true} className="dark">
+      <ConfiguratorContent
+        modelUrl={modelUrl}
+        modelName={modelName}
+        textures={textures}
+        availableMaterials={availableMaterials}
+        textureApplied={textureApplied}
+        handleModelSelect={handleModelSelect}
+        handleMaterialsLoaded={handleMaterialsLoaded}
+        handleTextureSelect={handleTextureSelect}
+        handleTextureApplied={handleTextureApplied}
+        handleARStatusChange={handleARStatusChange}
+        arStatus={arStatus}
+        isFocusMode={isFocusMode}
+        handleToggleFocus={handleToggleFocus}
+        isAutoRotating={isAutoRotating}
+        handleScreenshot={handleScreenshot}
+        handleReset={handleReset}
+        handleToggleAutoRotate={handleToggleAutoRotate}
+        handleActivateAR={handleActivateAR}
+        canAR={canAR}
+        viewerRef={viewerRef}
+        // Texture transform props
+        activeTextureSlot={activeTextureSlot}
+        setActiveTextureSlot={setActiveTextureSlot}
+        getTransform={getTransform}
+        updateTransformProperty={updateTransformProperty}
+        resetTransform={resetTransform}
+        // Decal editor
+        decal={decal}
+      />
+    </SidebarProvider>
   );
 }
