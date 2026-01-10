@@ -2,6 +2,7 @@
 
 import { useCallback, useState, useRef, useEffect, useMemo, memo } from 'react';
 import { clsx } from 'clsx';
+import { validateFileSize, validateMimeType } from '@/lib/security';
 
 interface TextureUploaderProps {
   onTextureSelect: (textureUrl: string, file: File, slotName: string) => void;
@@ -58,12 +59,12 @@ export const TextureUploader = memo(function TextureUploader({
   }, [mode, availableMaterials, selectedSlot]);
 
   const processFile = useCallback((file: File) => {
-    if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+    if (!validateMimeType(file.type, ALLOWED_MIME_TYPES)) {
       alert('Invalid file type. Please upload JPG, PNG, or WebP.');
       return;
     }
 
-    if (file.size > MAX_TEXTURE_SIZE) {
+    if (!validateFileSize(file.size, MAX_TEXTURE_SIZE)) {
       alert(`File too large. Maximum size is ${MAX_TEXTURE_SIZE / 1024 / 1024}MB.`);
       return;
     }

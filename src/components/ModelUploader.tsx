@@ -3,6 +3,7 @@
 import { useCallback, useState, useRef } from 'react';
 import { clsx } from 'clsx';
 import JSZip from 'jszip';
+import { sanitizeFilename, safeJsonParse, validateFileSize } from '@/lib/security';
 
 interface ModelUploaderProps {
   onModelSelect: (modelUrl: string, fileName: string) => void;
@@ -24,7 +25,7 @@ interface PatchResult {
 
 const patchGltfContent = async (gltfFile: File, resources: Map<string, File>): Promise<PatchResult> => {
   const text = await gltfFile.text();
-  const json = JSON.parse(text);
+  const json = safeJsonParse(text);
   const missing: string[] = [];
 
   const getResource = (uri: string): File | undefined => {
@@ -32,7 +33,7 @@ const patchGltfContent = async (gltfFile: File, resources: Map<string, File>): P
     
 
     const cleanUri = decodeURIComponent(uri);
-    const filename = cleanUri.split(/[/\\]/).pop();
+    const filename = sanitizeFilename(cleanUri);
     
     if (!filename) return undefined;
 
@@ -157,9 +158,8 @@ export function ModelUploader({
 
         console.log('📦 Extracting ZIP:', zipFile.name);
 
-        const extractionPromises: Promise<void>[] = [];
-
         let fileCount = 0;
+        // Pre-scan to check file count and nested zips
         for (const [relativePath, zipEntry] of Object.entries(zipContent.files)) {
           if (!zipEntry.dir) {
             fileCount++;
@@ -170,25 +170,22 @@ export function ModelUploader({
           }
         }
 
-        zipContent.forEach((relativePath, zipEntry) => {
+        // Sequential extraction to strictly enforce size limits and prevent memory exhaustion
+        for (const [relativePath, zipEntry] of Object.entries(zipContent.files)) {
           if (!zipEntry.dir) {
-            const promise = zipEntry.async('blob').then(blob => {
-              totalSize += blob.size;
-              if (totalSize > MAX_ZIP_TOTAL_SIZE) {
-                throw new Error(`Total extracted size exceeds limit (${MAX_ZIP_TOTAL_SIZE / 1024 / 1024}MB)`);
-              }
+            const blob = await zipEntry.async('blob');
+            totalSize += blob.size;
 
-              const filename = relativePath.split('/').pop() || relativePath;
-              const file = new File([blob], filename, { type: blob.type });
-              extractedFiles.push(file);
-              console.log(`  - Extracted: ${filename}`);
-            });
-            extractionPromises.push(promise);
+            if (!validateFileSize(totalSize, MAX_ZIP_TOTAL_SIZE)) {
+              throw new Error(`Total extracted size exceeds limit (${MAX_ZIP_TOTAL_SIZE / 1024 / 1024}MB)`);
+            }
+
+            const filename = sanitizeFilename(relativePath);
+            const file = new File([blob], filename, { type: blob.type });
+            extractedFiles.push(file);
+            console.log(`  - Extracted: ${filename}`);
           }
-        });
-
-        await Promise.all(extractionPromises);
-        
+        }
 
         await processFiles(extractedFiles);
         return;
