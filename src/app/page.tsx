@@ -10,6 +10,7 @@ import { ColorPicker } from '@/components/ColorPicker';
 import { TextureTransformPanel } from '@/components/TextureTransformPanel';
 import { useTextureTransform } from '@/hooks/use-texture-transform';
 import { useDecalTransform } from '@/hooks/use-decal-transform';
+import { useViewerShortcuts } from '@/hooks/use-viewer-shortcuts';
 import type { TextureTransform } from '@/types/texture-transform';
 import {
   Sidebar,
@@ -76,6 +77,14 @@ export default function ConfiguratorPage() {
   // Decal transform hook for 3D positioning
   const decal = useDecalTransform();
 
+  // Initialize keyboard shortcuts
+  useViewerShortcuts({
+    onToggleAutoRotate: () => handleToggleAutoRotate(),
+    onReset: () => handleReset(),
+    onScreenshot: () => handleScreenshot(),
+    onToggleFocus: () => handleToggleFocus(),
+    isEnabled: true,
+  });
 
   useEffect(() => {
     const checkAR = () => {

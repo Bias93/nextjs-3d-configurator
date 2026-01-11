@@ -1,0 +1,1 @@
+## 2025-02-19 - Keyboard Shortcuts\n**Learning:** Users often expect standard shortcuts in 3D applications (Space for rotate, R for reset).\n**Action:** When implementing viewer controls, always consider keyboard equivalents for mouse-heavy actions.
