@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, memo } from 'react';
 import { clsx } from 'clsx';
 
 interface MaterialColor {
@@ -58,8 +58,9 @@ function formatMaterialName(name: string): string {
 /**
  * Material color picker component for 3D models.
  * Allows users to select and apply colors to individual materials.
+ * Memoized to prevent re-renders when parent state (like AR status) changes but props are stable.
  */
-export function ColorPicker({ viewerRef, disabled = false }: ColorPickerProps) {
+export const ColorPicker = memo(function ColorPicker({ viewerRef, disabled = false }: ColorPickerProps) {
   const [materials, setMaterials] = useState<MaterialColor[]>([]);
   const [selectedMaterial, setSelectedMaterial] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -255,6 +256,6 @@ export function ColorPicker({ viewerRef, disabled = false }: ColorPickerProps) {
       )}
     </div>
   );
-}
+});
 
 export default ColorPicker;

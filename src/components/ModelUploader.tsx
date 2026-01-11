@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState, useRef } from 'react';
+import { useCallback, useState, useRef, memo } from 'react';
 import { clsx } from 'clsx';
 import JSZip from 'jszip';
 
@@ -127,8 +127,9 @@ const patchGltfContent = async (gltfFile: File, resources: Map<string, File>): P
 /**
  * 3D model upload component with drag-and-drop support.
  * Accepts GLB and glTF file formats.
+ * Memoized to prevent re-renders when parent state (like AR status) changes but props are stable.
  */
-export function ModelUploader({ 
+export const ModelUploader = memo(function ModelUploader({
   onModelSelect, 
   currentModel,
   modelName 
@@ -373,6 +374,6 @@ export function ModelUploader({
       </div>
     </div>
   );
-}
+});
 
 export default ModelUploader;
