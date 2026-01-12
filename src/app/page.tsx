@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, memo } from 'react';
 import { clsx } from 'clsx';
 import dynamic from 'next/dynamic';
 import { ModelUploader } from '@/components/ModelUploader';
@@ -196,7 +196,7 @@ export default function ConfiguratorPage() {
   );
 }
 
-function ConfiguratorContent({ 
+const ConfiguratorContent = memo(function ConfiguratorContent({
   modelUrl, modelName, textures, availableMaterials, textureApplied, 
   handleModelSelect, handleMaterialsLoaded, handleTextureSelect, handleTextureApplied,
   handleARStatusChange, arStatus, isFocusMode, handleToggleFocus,
@@ -490,4 +490,4 @@ function ConfiguratorContent({
         )}
       </div>
   );
-}
+});
