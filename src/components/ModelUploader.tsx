@@ -3,6 +3,7 @@
 import { useCallback, useState, useRef } from 'react';
 import { clsx } from 'clsx';
 import JSZip from 'jszip';
+import { sanitizeFilename, safeJsonParse, MAX_FILE_SIZE_150MB } from '@/lib/security';
 
 interface ModelUploaderProps {
   onModelSelect: (modelUrl: string, fileName: string) => void;
@@ -14,7 +15,7 @@ const VALID_EXTENSIONS = ['.glb', '.gltf'];
 
 // Security limits for ZIP uploads
 const MAX_ZIP_FILES = 50;
-const MAX_ZIP_TOTAL_SIZE = 150 * 1024 * 1024; // 150MB
+const MAX_ZIP_TOTAL_SIZE = MAX_FILE_SIZE_150MB;
 
 interface PatchResult {
   url: string;
@@ -24,7 +25,7 @@ interface PatchResult {
 
 const patchGltfContent = async (gltfFile: File, resources: Map<string, File>): Promise<PatchResult> => {
   const text = await gltfFile.text();
-  const json = JSON.parse(text);
+  const json = safeJsonParse<any>(text);
   const missing: string[] = [];
 
   const getResource = (uri: string): File | undefined => {
@@ -32,13 +33,15 @@ const patchGltfContent = async (gltfFile: File, resources: Map<string, File>): P
     
 
     const cleanUri = decodeURIComponent(uri);
-    const filename = cleanUri.split(/[/\\]/).pop();
+    const filename = sanitizeFilename(cleanUri);
     
     if (!filename) return undefined;
 
     const lowerFilename = filename.toLowerCase();
     for (const [key, value] of resources.entries()) {
       if (key.toLowerCase() === lowerFilename) return value;
+      // We check if the key (which should also be sanitized in the resources map if consistency is maintained)
+      // ends with the filename.
       if (key.endsWith(filename)) return value;
     }
 
@@ -178,7 +181,7 @@ export function ModelUploader({
                 throw new Error(`Total extracted size exceeds limit (${MAX_ZIP_TOTAL_SIZE / 1024 / 1024}MB)`);
               }
 
-              const filename = relativePath.split('/').pop() || relativePath;
+              const filename = sanitizeFilename(relativePath);
               const file = new File([blob], filename, { type: blob.type });
               extractedFiles.push(file);
               console.log(`  - Extracted: ${filename}`);
@@ -223,7 +226,25 @@ export function ModelUploader({
         name = gltfFile.name;
 
         const resourceMap = new Map<string, File>();
-        files.forEach(f => resourceMap.set(f.name, f));
+        files.forEach(f => {
+            // Consistent Sanitization:
+            // When user drags files (not in zip), they have names like "image@2x.png".
+            // patchGltfContent gets a GLTF that refers to "image%402x.png" (URL encoded) or "image@2x.png".
+            // getResource sanitizes the GLTF uri -> "image_2x.png".
+            // If we store "image@2x.png" in map, "image_2x.png" won't match "image@2x.png".
+            // So we MUST sanitize the key here too to match getResource behavior.
+            const sanitizedName = sanitizeFilename(f.name);
+            resourceMap.set(sanitizedName, f);
+
+            // Also store original name as fallback?
+            // If getResource sanitizes the lookup key, we must have a sanitized key in the map.
+            // If we also want to support exact matches (in case sanitizeFilename is too aggressive but the URI was simple),
+            // we could store both, but sanitizeFilename is deterministically aggressive.
+            // Let's rely on sanitized key.
+            if (sanitizedName !== f.name) {
+                console.log(`[ModelUploader] Mapped uploaded file '${f.name}' to '${sanitizedName}'`);
+            }
+        });
         
         const result = await patchGltfContent(gltfFile, resourceMap);
         url = result.url;
