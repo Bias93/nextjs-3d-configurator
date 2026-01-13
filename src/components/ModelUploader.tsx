@@ -3,6 +3,7 @@
 import { useCallback, useState, useRef } from 'react';
 import { clsx } from 'clsx';
 import JSZip from 'jszip';
+import { safeJsonParse, sanitizeFilename, validateFileSize } from '@/lib/security';
 
 interface ModelUploaderProps {
   onModelSelect: (modelUrl: string, fileName: string) => void;
@@ -24,7 +25,7 @@ interface PatchResult {
 
 const patchGltfContent = async (gltfFile: File, resources: Map<string, File>): Promise<PatchResult> => {
   const text = await gltfFile.text();
-  const json = JSON.parse(text);
+  const json = safeJsonParse(text);
   const missing: string[] = [];
 
   const getResource = (uri: string): File | undefined => {
@@ -32,7 +33,7 @@ const patchGltfContent = async (gltfFile: File, resources: Map<string, File>): P
     
 
     const cleanUri = decodeURIComponent(uri);
-    const filename = cleanUri.split(/[/\\]/).pop();
+    const filename = sanitizeFilename(cleanUri);
     
     if (!filename) return undefined;
 
@@ -174,11 +175,11 @@ export function ModelUploader({
           if (!zipEntry.dir) {
             const promise = zipEntry.async('blob').then(blob => {
               totalSize += blob.size;
-              if (totalSize > MAX_ZIP_TOTAL_SIZE) {
+              if (!validateFileSize(totalSize, MAX_ZIP_TOTAL_SIZE)) {
                 throw new Error(`Total extracted size exceeds limit (${MAX_ZIP_TOTAL_SIZE / 1024 / 1024}MB)`);
               }
 
-              const filename = relativePath.split('/').pop() || relativePath;
+              const filename = sanitizeFilename(relativePath);
               const file = new File([blob], filename, { type: blob.type });
               extractedFiles.push(file);
               console.log(`  - Extracted: ${filename}`);
