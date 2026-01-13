@@ -13,6 +13,12 @@ interface ProductViewerProps {
   onARStatusChange?: (status: 'not-presenting' | 'session-started' | 'object-placed' | 'failed') => void;
 }
 
+const MATERIAL_TARGET_MAP: Record<string, string[]> = {
+  'logo_1': ['logo.001', 'logo_1', 'logo_front', 'decals_1', 'frame', 'telaio'],
+  'logo_2': ['logo.002', 'logo_2', 'logo_back', 'decals_2'],
+  'logo_3': ['logo.003', 'logo_3', 'logo_sleeve', 'decals_3']
+};
+
 /**
  * Converts degrees to radians.
  */
@@ -38,6 +44,9 @@ export const ProductViewer = memo(forwardRef<HTMLElement, ProductViewerProps>(({
 
   // Store original texture URLs for re-transformation
   const originalTexturesRef = useRef<Record<string, string>>({});
+
+  // Cache for material lookups to avoid expensive searches
+  const materialCacheRef = useRef<Map<string, Material>>(new Map());
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -105,7 +114,37 @@ export const ProductViewer = memo(forwardRef<HTMLElement, ProductViewerProps>(({
 
   useEffect(() => {
     setIsLoaded(false);
+    materialCacheRef.current.clear();
   }, [modelSrc]);
+
+  /**
+   * Helper to find a material by slot name using cache.
+   */
+  const getMaterialForSlot = useCallback((viewer: ModelViewerElement, slotName: string): Material | undefined => {
+    if (materialCacheRef.current.has(slotName)) {
+      return materialCacheRef.current.get(slotName);
+    }
+
+    if (!viewer.model) return undefined;
+
+    const materials = viewer.model.materials;
+    if (!materials) return undefined;
+
+    const targetNames = MATERIAL_TARGET_MAP[slotName] || [slotName];
+
+    // Handle case where materials might be iterable but not Array
+    const materialsList = (Array.isArray(materials) ? materials : Array.from(materials)) as Material[];
+
+    const targetMaterial = materialsList.find((m: Material) =>
+      targetNames.some(name => m.name.toLowerCase().includes(name.toLowerCase()))
+    );
+
+    if (targetMaterial) {
+      materialCacheRef.current.set(slotName, targetMaterial);
+    }
+
+    return targetMaterial;
+  }, []);
 
   /**
    * Applies a texture to a material slot.
@@ -122,19 +161,8 @@ export const ProductViewer = memo(forwardRef<HTMLElement, ProductViewerProps>(({
       originalTexturesRef.current[slotName] = textureUrl;
 
       const newTexture = await viewer.createTexture(textureUrl);
-      const materials = viewer.model.materials;
 
-      const materialTargetMap: Record<string, string[]> = {
-        'logo_1': ['logo.001', 'logo_1', 'logo_front', 'decals_1'],
-        'logo_2': ['logo.002', 'logo_2', 'logo_back', 'decals_2'],
-        'logo_3': ['logo.003', 'logo_3', 'logo_sleeve', 'decals_3']
-      };
-
-      const targetNames = materialTargetMap[slotName] || [slotName];
-
-      const targetMaterial = materials.find((m: Material) => 
-        targetNames.some(name => m.name.toLowerCase().includes(name.toLowerCase()))
-      );
+      const targetMaterial = getMaterialForSlot(viewer, slotName);
 
       if (!targetMaterial) {
         console.warn(`No material found for slot: ${slotName}`);
@@ -154,7 +182,7 @@ export const ProductViewer = memo(forwardRef<HTMLElement, ProductViewerProps>(({
     } catch (error) {
       console.error('Texture application error:', error);
     }
-  }, [onTextureApplied]);
+  }, [onTextureApplied, getMaterialForSlot]);
 
   /**
    * Applies UV transform to an already-applied texture.
@@ -175,26 +203,12 @@ export const ProductViewer = memo(forwardRef<HTMLElement, ProductViewerProps>(({
     }
 
     try {
-      const materials = viewer.model.materials;
-      if (!materials || materials.length === 0) {
-        console.warn('[Transform] No materials found');
-        return;
-      }
-
-      const materialTargetMap: Record<string, string[]> = {
-        'logo_1': ['logo.001', 'logo_1', 'logo_front', 'decals_1', 'frame', 'telaio'],
-        'logo_2': ['logo.002', 'logo_2', 'logo_back', 'decals_2'],
-        'logo_3': ['logo.003', 'logo_3', 'logo_sleeve', 'decals_3']
-      };
-
-      const targetNames = materialTargetMap[slotName] || [slotName];
-
-      const targetMaterial = materials.find((m: Material) => 
-        targetNames.some(name => m.name.toLowerCase().includes(name.toLowerCase()))
-      );
+      const targetMaterial = getMaterialForSlot(viewer, slotName);
 
       if (!targetMaterial) {
-        console.warn(`[Transform] No material found for slot: ${slotName}. Available materials:`, materials.map((m: Material) => m.name));
+        const materials = viewer.model.materials;
+        console.warn(`[Transform] No material found for slot: ${slotName}. Available materials:`,
+          Array.from(materials || []).map((m: any) => m.name));
         return;
       }
 
@@ -238,7 +252,7 @@ export const ProductViewer = memo(forwardRef<HTMLElement, ProductViewerProps>(({
     } catch (error) {
       console.error('[Transform] Error:', error);
     }
-  }, []);
+  }, [getMaterialForSlot]);
 
   useEffect(() => {
     if (viewerRef.current) {
