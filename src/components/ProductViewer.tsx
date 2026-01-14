@@ -13,6 +13,18 @@ interface ProductViewerProps {
   onARStatusChange?: (status: 'not-presenting' | 'session-started' | 'object-placed' | 'failed') => void;
 }
 
+const TEXTURE_TARGET_MAP: Record<string, string[]> = {
+  'logo_1': ['logo.001', 'logo_1', 'logo_front', 'decals_1'],
+  'logo_2': ['logo.002', 'logo_2', 'logo_back', 'decals_2'],
+  'logo_3': ['logo.003', 'logo_3', 'logo_sleeve', 'decals_3']
+};
+
+const TRANSFORM_TARGET_MAP: Record<string, string[]> = {
+  'logo_1': ['logo.001', 'logo_1', 'logo_front', 'decals_1', 'frame', 'telaio'],
+  'logo_2': ['logo.002', 'logo_2', 'logo_back', 'decals_2'],
+  'logo_3': ['logo.003', 'logo_3', 'logo_sleeve', 'decals_3']
+};
+
 /**
  * Converts degrees to radians.
  */
@@ -124,13 +136,7 @@ export const ProductViewer = memo(forwardRef<HTMLElement, ProductViewerProps>(({
       const newTexture = await viewer.createTexture(textureUrl);
       const materials = viewer.model.materials;
 
-      const materialTargetMap: Record<string, string[]> = {
-        'logo_1': ['logo.001', 'logo_1', 'logo_front', 'decals_1'],
-        'logo_2': ['logo.002', 'logo_2', 'logo_back', 'decals_2'],
-        'logo_3': ['logo.003', 'logo_3', 'logo_sleeve', 'decals_3']
-      };
-
-      const targetNames = materialTargetMap[slotName] || [slotName];
+      const targetNames = TEXTURE_TARGET_MAP[slotName] || [slotName];
 
       const targetMaterial = materials.find((m: Material) => 
         targetNames.some(name => m.name.toLowerCase().includes(name.toLowerCase()))
@@ -181,13 +187,7 @@ export const ProductViewer = memo(forwardRef<HTMLElement, ProductViewerProps>(({
         return;
       }
 
-      const materialTargetMap: Record<string, string[]> = {
-        'logo_1': ['logo.001', 'logo_1', 'logo_front', 'decals_1', 'frame', 'telaio'],
-        'logo_2': ['logo.002', 'logo_2', 'logo_back', 'decals_2'],
-        'logo_3': ['logo.003', 'logo_3', 'logo_sleeve', 'decals_3']
-      };
-
-      const targetNames = materialTargetMap[slotName] || [slotName];
+      const targetNames = TRANSFORM_TARGET_MAP[slotName] || [slotName];
 
       const targetMaterial = materials.find((m: Material) => 
         targetNames.some(name => m.name.toLowerCase().includes(name.toLowerCase()))
