@@ -1,0 +1,12 @@
+
+> nextjs-3d-configurator@1.0.0 dev
+> next dev
+
+▲ Next.js 16.1.1 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.0.2:3000
+
+✓ Starting...
+✓ Ready in 1019ms
+○ Compiling / ...
+ GET / 200 in 11.3s (compile: 10.8s, render: 470ms)
