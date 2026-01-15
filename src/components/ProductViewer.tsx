@@ -20,6 +20,18 @@ function degreesToRadians(degrees: number): number {
   return (degrees * Math.PI) / 180;
 }
 
+const TEXTURE_TARGET_MAP: Record<string, string[]> = {
+  'logo_1': ['logo.001', 'logo_1', 'logo_front', 'decals_1'],
+  'logo_2': ['logo.002', 'logo_2', 'logo_back', 'decals_2'],
+  'logo_3': ['logo.003', 'logo_3', 'logo_sleeve', 'decals_3']
+};
+
+const TRANSFORM_TARGET_MAP: Record<string, string[]> = {
+  'logo_1': ['logo.001', 'logo_1', 'logo_front', 'decals_1', 'frame', 'telaio'],
+  'logo_2': ['logo.002', 'logo_2', 'logo_back', 'decals_2'],
+  'logo_3': ['logo.003', 'logo_3', 'logo_sleeve', 'decals_3']
+};
+
 export const ProductViewer = memo(forwardRef<HTMLElement, ProductViewerProps>(({
   modelSrc,
   poster,
@@ -38,6 +50,9 @@ export const ProductViewer = memo(forwardRef<HTMLElement, ProductViewerProps>(({
 
   // Store original texture URLs for re-transformation
   const originalTexturesRef = useRef<Record<string, string>>({});
+
+  // Cache material lookups to avoid expensive searches during transforms
+  const materialCacheRef = useRef<Map<string, Material>>(new Map());
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -105,6 +120,7 @@ export const ProductViewer = memo(forwardRef<HTMLElement, ProductViewerProps>(({
 
   useEffect(() => {
     setIsLoaded(false);
+    materialCacheRef.current.clear();
   }, [modelSrc]);
 
   /**
@@ -124,13 +140,7 @@ export const ProductViewer = memo(forwardRef<HTMLElement, ProductViewerProps>(({
       const newTexture = await viewer.createTexture(textureUrl);
       const materials = viewer.model.materials;
 
-      const materialTargetMap: Record<string, string[]> = {
-        'logo_1': ['logo.001', 'logo_1', 'logo_front', 'decals_1'],
-        'logo_2': ['logo.002', 'logo_2', 'logo_back', 'decals_2'],
-        'logo_3': ['logo.003', 'logo_3', 'logo_sleeve', 'decals_3']
-      };
-
-      const targetNames = materialTargetMap[slotName] || [slotName];
+      const targetNames = TEXTURE_TARGET_MAP[slotName] || [slotName];
 
       const targetMaterial = materials.find((m: Material) => 
         targetNames.some(name => m.name.toLowerCase().includes(name.toLowerCase()))
@@ -181,17 +191,19 @@ export const ProductViewer = memo(forwardRef<HTMLElement, ProductViewerProps>(({
         return;
       }
 
-      const materialTargetMap: Record<string, string[]> = {
-        'logo_1': ['logo.001', 'logo_1', 'logo_front', 'decals_1', 'frame', 'telaio'],
-        'logo_2': ['logo.002', 'logo_2', 'logo_back', 'decals_2'],
-        'logo_3': ['logo.003', 'logo_3', 'logo_sleeve', 'decals_3']
-      };
+      let targetMaterial = materialCacheRef.current.get(slotName);
 
-      const targetNames = materialTargetMap[slotName] || [slotName];
+      if (!targetMaterial) {
+        const targetNames = TRANSFORM_TARGET_MAP[slotName] || [slotName];
 
-      const targetMaterial = materials.find((m: Material) => 
-        targetNames.some(name => m.name.toLowerCase().includes(name.toLowerCase()))
-      );
+        targetMaterial = materials.find((m: Material) =>
+          targetNames.some(name => m.name.toLowerCase().includes(name.toLowerCase()))
+        );
+
+        if (targetMaterial) {
+          materialCacheRef.current.set(slotName, targetMaterial);
+        }
+      }
 
       if (!targetMaterial) {
         console.warn(`[Transform] No material found for slot: ${slotName}. Available materials:`, materials.map((m: Material) => m.name));
