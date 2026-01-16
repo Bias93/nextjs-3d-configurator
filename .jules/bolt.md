@@ -1,0 +1,3 @@
+## 2024-05-22 - [Performance] Material Caching in ProductViewer
+**Learning:** `model-viewer` exposes materials as an iterable. Searching through this iterable on every frame (e.g., during slider drag for texture transformation) can be expensive, especially with string matching involved.
+**Action:** Cache material lookups by slot name. Use a `Map` that is cleared when the model changes. This turns an O(N) search with string operations into an O(1) map lookup for hot paths like texture transformation. Crucially, also cache "misses" (where no material is found) using `null` to prevent repeated searching for non-existent targets.

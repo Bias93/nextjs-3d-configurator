@@ -4,6 +4,19 @@ import { useEffect, useRef, useState, useCallback, forwardRef, memo } from 'reac
 import type { TextureTransform } from '@/types/texture-transform';
 import { DEFAULT_TEXTURE_TRANSFORM } from '@/types/texture-transform';
 
+// Define target maps as module constants to avoid recreation
+const TEXTURE_TARGET_MAP: Record<string, string[]> = {
+  'logo_1': ['logo.001', 'logo_1', 'logo_front', 'decals_1'],
+  'logo_2': ['logo.002', 'logo_2', 'logo_back', 'decals_2'],
+  'logo_3': ['logo.003', 'logo_3', 'logo_sleeve', 'decals_3']
+};
+
+const TRANSFORM_TARGET_MAP: Record<string, string[]> = {
+  'logo_1': ['logo.001', 'logo_1', 'logo_front', 'decals_1', 'frame', 'telaio'],
+  'logo_2': ['logo.002', 'logo_2', 'logo_back', 'decals_2'],
+  'logo_3': ['logo.003', 'logo_3', 'logo_sleeve', 'decals_3']
+};
+
 interface ProductViewerProps {
   modelSrc: string;
   poster?: string;
@@ -38,6 +51,8 @@ export const ProductViewer = memo(forwardRef<HTMLElement, ProductViewerProps>(({
 
   // Store original texture URLs for re-transformation
   const originalTexturesRef = useRef<Record<string, string>>({});
+  // Cache material lookups to avoid O(N) searches on hot paths (e.g., slider dragging)
+  const materialCacheRef = useRef<Map<string, Material | null>>(new Map());
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -105,6 +120,8 @@ export const ProductViewer = memo(forwardRef<HTMLElement, ProductViewerProps>(({
 
   useEffect(() => {
     setIsLoaded(false);
+    // Clear material cache when model changes
+    materialCacheRef.current.clear();
   }, [modelSrc]);
 
   /**
@@ -124,17 +141,21 @@ export const ProductViewer = memo(forwardRef<HTMLElement, ProductViewerProps>(({
       const newTexture = await viewer.createTexture(textureUrl);
       const materials = viewer.model.materials;
 
-      const materialTargetMap: Record<string, string[]> = {
-        'logo_1': ['logo.001', 'logo_1', 'logo_front', 'decals_1'],
-        'logo_2': ['logo.002', 'logo_2', 'logo_back', 'decals_2'],
-        'logo_3': ['logo.003', 'logo_3', 'logo_sleeve', 'decals_3']
-      };
+      // Check cache first
+      let targetMaterial: Material | undefined | null;
+      if (materialCacheRef.current.has(slotName)) {
+        targetMaterial = materialCacheRef.current.get(slotName);
+      } else {
+        const targetNames = TEXTURE_TARGET_MAP[slotName] || [slotName];
 
-      const targetNames = materialTargetMap[slotName] || [slotName];
+        // Explicit cast to Array because materials is iterable
+        const foundMaterial = (Array.from(materials) as Material[]).find((m: Material) =>
+          targetNames.some(name => m.name.toLowerCase().includes(name.toLowerCase()))
+        );
 
-      const targetMaterial = materials.find((m: Material) => 
-        targetNames.some(name => m.name.toLowerCase().includes(name.toLowerCase()))
-      );
+        targetMaterial = foundMaterial || null;
+        materialCacheRef.current.set(slotName, targetMaterial);
+      }
 
       if (!targetMaterial) {
         console.warn(`No material found for slot: ${slotName}`);
@@ -176,25 +197,30 @@ export const ProductViewer = memo(forwardRef<HTMLElement, ProductViewerProps>(({
 
     try {
       const materials = viewer.model.materials;
-      if (!materials || materials.length === 0) {
+      if (!materials) { // model.materials can be null/undefined initially
         console.warn('[Transform] No materials found');
         return;
       }
 
-      const materialTargetMap: Record<string, string[]> = {
-        'logo_1': ['logo.001', 'logo_1', 'logo_front', 'decals_1', 'frame', 'telaio'],
-        'logo_2': ['logo.002', 'logo_2', 'logo_back', 'decals_2'],
-        'logo_3': ['logo.003', 'logo_3', 'logo_sleeve', 'decals_3']
-      };
+      // Check cache first
+      let targetMaterial: Material | undefined | null;
+      if (materialCacheRef.current.has(slotName)) {
+        targetMaterial = materialCacheRef.current.get(slotName);
+      } else {
+        const targetNames = TRANSFORM_TARGET_MAP[slotName] || [slotName];
 
-      const targetNames = materialTargetMap[slotName] || [slotName];
+        const foundMaterial = (Array.from(materials) as Material[]).find((m: Material) =>
+          targetNames.some(name => m.name.toLowerCase().includes(name.toLowerCase()))
+        );
 
-      const targetMaterial = materials.find((m: Material) => 
-        targetNames.some(name => m.name.toLowerCase().includes(name.toLowerCase()))
-      );
+        targetMaterial = foundMaterial || null;
+        materialCacheRef.current.set(slotName, targetMaterial);
+      }
 
       if (!targetMaterial) {
-        console.warn(`[Transform] No material found for slot: ${slotName}. Available materials:`, materials.map((m: Material) => m.name));
+        // Only warn if materials actually exist but target wasn't found
+        const materialNames = Array.from(materials).map((m: any) => m.name);
+        console.warn(`[Transform] No material found for slot: ${slotName}. Available materials:`, materialNames);
         return;
       }
 
