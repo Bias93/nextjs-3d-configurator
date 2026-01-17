@@ -3,6 +3,7 @@
 import { useCallback, useState, useRef } from 'react';
 import { clsx } from 'clsx';
 import JSZip from 'jszip';
+import { safeJsonParse, sanitizeFilename, validateFileSize } from '@/lib/security';
 
 interface ModelUploaderProps {
   onModelSelect: (modelUrl: string, fileName: string) => void;
@@ -24,7 +25,12 @@ interface PatchResult {
 
 const patchGltfContent = async (gltfFile: File, resources: Map<string, File>): Promise<PatchResult> => {
   const text = await gltfFile.text();
-  const json = JSON.parse(text);
+  const json = safeJsonParse(text);
+
+  if (!json) {
+    throw new Error('Failed to parse GLTF JSON safely');
+  }
+
   const missing: string[] = [];
 
   const getResource = (uri: string): File | undefined => {
@@ -32,7 +38,7 @@ const patchGltfContent = async (gltfFile: File, resources: Map<string, File>): P
     
 
     const cleanUri = decodeURIComponent(uri);
-    const filename = cleanUri.split(/[/\\]/).pop();
+    const filename = sanitizeFilename(cleanUri);
     
     if (!filename) return undefined;
 
@@ -140,6 +146,14 @@ export function ModelUploader({
   const processFiles = useCallback(async (files: File[]) => {
     if (files.length === 0) return;
 
+    // Security: Validate file sizes
+    for (const file of files) {
+      if (!validateFileSize(file, MAX_ZIP_TOTAL_SIZE)) {
+        alert(`File ${file.name} is too large (max ${MAX_ZIP_TOTAL_SIZE / 1024 / 1024}MB)`);
+        return;
+      }
+    }
+
     const zipFile = files.find(f => f.name.toLowerCase().endsWith('.zip'));
     if (zipFile) {
       setIsLoading(true);
@@ -178,7 +192,7 @@ export function ModelUploader({
                 throw new Error(`Total extracted size exceeds limit (${MAX_ZIP_TOTAL_SIZE / 1024 / 1024}MB)`);
               }
 
-              const filename = relativePath.split('/').pop() || relativePath;
+              const filename = sanitizeFilename(relativePath);
               const file = new File([blob], filename, { type: blob.type });
               extractedFiles.push(file);
               console.log(`  - Extracted: ${filename}`);
