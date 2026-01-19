@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import type { DecalTransform, DecalState, Vector3Tuple } from '@/types/decal';
 import { DEFAULT_DECAL_TRANSFORM } from '@/types/decal';
 
@@ -104,7 +104,7 @@ export function useDecalTransform() {
     }));
   }, []);
 
-  return {
+  return useMemo(() => ({
     ...state,
     startEditing,
     cancelEditing,
@@ -114,7 +114,7 @@ export function useDecalTransform() {
     setScale,
     setTransform,
     resetTransform,
-  };
+  }), [state, startEditing, cancelEditing, applyEditing, setPosition, setRotation, setScale, setTransform, resetTransform]);
 }
 
 export type UseDecalTransformReturn = ReturnType<typeof useDecalTransform>;

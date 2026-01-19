@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import type { TextureTransform } from '@/types/texture-transform';
 import { DEFAULT_TEXTURE_TRANSFORM } from '@/types/texture-transform';
 
@@ -91,14 +91,14 @@ export function useTextureTransform(debounceMs: number = 16) {
     };
   }, []);
 
-  return {
+  return useMemo(() => ({
     transforms,
     getTransform,
     updateProperty,
     setTransform,
     resetTransform,
     clearAll,
-  };
+  }), [transforms, getTransform, updateProperty, setTransform, resetTransform, clearAll]);
 }
 
 export type UseTextureTransformReturn = ReturnType<typeof useTextureTransform>;
