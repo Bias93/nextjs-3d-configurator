@@ -486,6 +486,7 @@ function ConfiguratorContent({
             onTransformChange={decal.setTransform}
             onApply={decal.applyEditing}
             onCancel={decal.cancelEditing}
+            activeSlotName={activeTextureSlot}
           />
         )}
       </div>

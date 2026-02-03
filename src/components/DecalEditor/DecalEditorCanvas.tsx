@@ -1,12 +1,22 @@
 'use client';
 
 import { Suspense, useRef, useState, useEffect, useCallback } from 'react';
-import { Canvas, useThree } from '@react-three/fiber';
-import { OrbitControls, useGLTF, Environment, Center } from '@react-three/drei';
+import { Canvas, useThree, useLoader } from '@react-three/fiber';
+import { OrbitControls, useGLTF, Environment, Center, useTexture } from '@react-three/drei';
 import * as THREE from 'three';
 import type { DecalTransform, DecalEditorProps } from '@/types/decal';
 import { EditableDecal } from './EditableDecal';
 import DecalTransformPanel from './DecalTransformPanel';
+import { materialTargetMap } from '@/lib/material-utils';
+
+// Define props for the internal Model component
+interface ModelProps {
+  url: string;
+  textureUrl: string;
+  transform: DecalTransform;
+  onTransformChange: (transform: DecalTransform) => void;
+  activeSlotName?: string;
+}
 
 /**
  * Model component that loads GLB and provides mesh reference for Decal.
@@ -16,32 +26,98 @@ function Model({
   textureUrl,
   transform,
   onTransformChange,
-}: {
-  url: string;
-  textureUrl: string;
-  transform: DecalTransform;
-  onTransformChange: (transform: DecalTransform) => void;
-}) {
+  activeSlotName,
+}: ModelProps) {
   const { scene } = useGLTF(url);
+  const texture = useTexture(textureUrl); // Load the texture to apply to the mesh
   const [targetMesh, setTargetMesh] = useState<THREE.Mesh | null>(null);
   const [isSelected, setIsSelected] = useState(true);
   const meshRef = useRef<THREE.Mesh | null>(null);
   const { gl } = useThree();
 
+  // Configure texture encoding to match R3F defaults
+  useEffect(() => {
+    if (texture) {
+      texture.colorSpace = THREE.SRGBColorSpace;
+      texture.flipY = false; // model-viewer often flips Y, but standard Three.js might not. Check if needed.
+      // Usually GLTF expects flipY=false.
+    }
+  }, [texture]);
+
   // Clone scene to avoid modifying cached version
   const clonedScene = scene.clone();
 
-  // Find first mesh for decal target
+  // Find correct mesh for decal target based on slot name AND apply texture
   useEffect(() => {
     let found: THREE.Mesh | null = null;
+
+    const targetNames = activeSlotName ? (materialTargetMap[activeSlotName] || [activeSlotName]) : [];
+
+    // First try to find by material name
     clonedScene.traverse((child) => {
-      if (child instanceof THREE.Mesh && !found) {
-        found = child;
-        meshRef.current = child;
-      }
+        if (child instanceof THREE.Mesh && child.material) {
+            const mat = child.material as THREE.MeshStandardMaterial; // Assume standard material
+            // Check if this is the target mesh
+            if (!found && activeSlotName && targetNames.some(name => mat.name.toLowerCase().includes(name.toLowerCase()))) {
+                found = child;
+                meshRef.current = child;
+                console.log('[DecalEditor] Found target mesh:', child.name);
+            }
+        }
     });
+
+    // Fallback: Find first mesh if not found
+    if (!found) {
+        clonedScene.traverse((child) => {
+        if (child instanceof THREE.Mesh && !found) {
+            found = child;
+            meshRef.current = child;
+        }
+        });
+    }
+
     setTargetMesh(found);
-  }, [url]);
+
+    // Auto-center logic in WORLD space
+    if (found) {
+        const mesh = found as THREE.Mesh;
+        if (mesh.geometry) {
+            // Ensure world matrix is up to date
+            mesh.updateMatrixWorld(true);
+
+            mesh.geometry.computeBoundingBox();
+            const aabb = mesh.geometry.boundingBox;
+
+            if (aabb) {
+                // Convert bounds to world space
+                const worldBox = new THREE.Box3().copy(aabb).applyMatrix4(mesh.matrixWorld);
+                const center = new THREE.Vector3();
+                worldBox.getCenter(center);
+                const size = new THREE.Vector3();
+                worldBox.getSize(size);
+
+                // If this is a fresh session or default transform, snap to center
+                // We compare against default values
+                const isDefault = transform.position[0] === 0 && transform.position[1] === 0 && transform.position[2] === 0.1;
+
+                if (isDefault) {
+                     console.log('[DecalEditor] Auto-centering decal at World Center:', center);
+
+                     // Move slightly along the largest normal or just Z+ relative to bounds?
+                     // Heuristic: Center + slight Z offset based on bounding box depth
+                     // Note: We are using OrbitControls around Center, so 0,0,0 is roughly the center of the scene.
+
+                     onTransformChange({
+                         ...transform,
+                         position: [center.x, center.y, center.z + (size.z * 0.5) + 0.05],
+                         // Adjust scale to fit the mesh nicely (e.g., 60% of width)
+                         scale: Math.min(size.x, size.y) * 0.6,
+                     });
+                }
+            }
+        }
+    }
+  }, [url, activeSlotName, texture]);
 
   // Click outside to deselect
   const handlePointerMissed = useCallback(() => {
@@ -88,6 +164,11 @@ function LoadingFallback() {
   );
 }
 
+// Update DecalEditorProps to include activeSlotName
+interface ExtendedDecalEditorProps extends DecalEditorProps {
+    activeSlotName?: string;
+}
+
 /**
  * Main R3F Canvas for decal editing.
  */
@@ -98,7 +179,8 @@ export function DecalEditorCanvas({
   onTransformChange,
   onApply,
   onCancel,
-}: DecalEditorProps) {
+  activeSlotName,
+}: ExtendedDecalEditorProps) {
   const [transform, setTransform] = useState<DecalTransform>(
     initialTransform || {
       position: [0, 0, 0.1],
@@ -184,6 +266,7 @@ export function DecalEditorCanvas({
               textureUrl={textureUrl}
               transform={transform}
               onTransformChange={handleTransformChange}
+              activeSlotName={activeSlotName}
             />
           </Suspense>
         </Canvas>

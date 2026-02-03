@@ -92,10 +92,10 @@ export function EditableDecal({
         onDrag={handleDrag}
         activeAxes={[true, true, true]}
       >
-        {/* Invisible helper mesh for the gizmo to attach to */}
-        <mesh visible={false}>
-          <planeGeometry args={[0.1, 0.1]} />
-          <meshBasicMaterial transparent opacity={0} />
+        {/* Helper mesh for visual feedback of position */}
+        <mesh>
+          <sphereGeometry args={[0.05, 16, 16]} />
+          <meshBasicMaterial color="yellow" wireframe depthTest={false} />
         </mesh>
       </PivotControls>
 
@@ -105,6 +105,8 @@ export function EditableDecal({
         position={position}
         rotation={rotation}
         scale={transform.scale}
+        renderOrder={100}
+        debug // Enable debug box to visualize projection
         onClick={(e) => {
           e.stopPropagation();
           onSelect();
@@ -113,10 +115,12 @@ export function EditableDecal({
         <meshStandardMaterial
           map={texture}
           transparent
+          opacity={1.0}
           polygonOffset
           polygonOffsetFactor={-10}
-          depthTest={true}
+          depthTest={false}
           depthWrite={false}
+          side={THREE.DoubleSide}
         />
       </Decal>
     </>
