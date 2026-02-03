@@ -280,6 +280,13 @@ export function ModelUploader({
     inputRef.current?.click();
   }, []);
 
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleClick();
+    }
+  }, [handleClick]);
+
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2 mb-3 px-1">
@@ -291,12 +298,14 @@ export function ModelUploader({
 
       <div
         onClick={handleClick}
+        onKeyDown={handleKeyDown}
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         className={clsx(
           'relative group/model cursor-pointer rounded-lg border-2 border-dashed transition-all duration-200',
           'flex flex-col items-center justify-center p-6 min-h-[140px]',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-500',
           isDragOver 
             ? 'border-accent-500 bg-accent-500/10' 
             : 'border-surface-700 bg-surface-900/50 hover:border-surface-500 hover:bg-surface-800/50'
