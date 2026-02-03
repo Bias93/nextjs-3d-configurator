@@ -15,6 +15,11 @@ export interface TextureTransform {
 }
 
 /**
+ * Union type for texture transform properties.
+ */
+export type TextureTransformProperty = keyof TextureTransform;
+
+/**
  * Default texture transform values.
  */
 export const DEFAULT_TEXTURE_TRANSFORM: TextureTransform = {

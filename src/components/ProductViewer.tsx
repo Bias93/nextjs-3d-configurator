@@ -241,14 +241,53 @@ export const ProductViewer = memo(forwardRef<HTMLElement, ProductViewerProps>(({
     }
   }, []);
 
+  /**
+   * Force release of WebGL context - call this before switching to R3F
+   * This prevents "Context Lost" errors when using model-viewer alongside R3F
+   */
+  const forceReleaseContext = useCallback(() => {
+    const viewer = viewerRef.current;
+    if (!viewer) return;
+
+    try {
+      // Get the shadow root where model-viewer renders its canvas
+      const shadowRoot = viewer.shadowRoot;
+      if (shadowRoot) {
+        const canvas = shadowRoot.querySelector('canvas');
+        if (canvas) {
+          const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
+          // Check if context exists and is NOT already lost
+          if (gl && !gl.isContextLost()) {
+            const loseContext = gl.getExtension('WEBGL_lose_context');
+            if (loseContext) {
+              loseContext.loseContext();
+              console.log('[ProductViewer] WebGL context released');
+            }
+          } else if (gl?.isContextLost()) {
+            console.log('[ProductViewer] WebGL context already lost, skipping release');
+          }
+        }
+      }
+    } catch (error) {
+      console.warn('[ProductViewer] Could not release WebGL context:', error);
+    }
+  }, []);
+
   useEffect(() => {
     if (viewerRef.current) {
       (viewerRef.current as any).applyCustomTexture = applyTexture;
       (viewerRef.current as any).applyTextureTransform = applyTextureTransform;
-      (viewerRef.current as any).getOriginalTexture = (slotName: string) => 
+      (viewerRef.current as any).getOriginalTexture = (slotName: string) =>
         originalTexturesRef.current[slotName];
+      // Expose the context release function
+      (viewerRef.current as any).forceReleaseContext = forceReleaseContext;
     }
-  }, [applyTexture, applyTextureTransform, isLoaded]);
+  }, [applyTexture, applyTextureTransform, forceReleaseContext, isLoaded]);
+
+  // Note: We intentionally do NOT force release the WebGL context on unmount
+  // Calling loseContext() can cause issues when R3F tries to create a new context
+  // Instead, we rely on the browser's natural garbage collection with a delay
+  // in page.tsx before mounting the DecalEditor
 
   if (!isModelViewerReady) {
     return (

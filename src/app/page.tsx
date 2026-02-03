@@ -10,7 +10,7 @@ import { ColorPicker } from '@/components/ColorPicker';
 import { TextureTransformPanel } from '@/components/TextureTransformPanel';
 import { useTextureTransform } from '@/hooks/use-texture-transform';
 import { useDecalTransform } from '@/hooks/use-decal-transform';
-import type { TextureTransform } from '@/types/texture-transform';
+import type { TextureTransform, TextureTransformProperty } from '@/types/texture-transform';
 import {
   Sidebar,
   SidebarContent,
@@ -18,14 +18,13 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarProvider,
   SidebarTrigger,
   SidebarInset,
-  SidebarSeparator,
   useSidebar,
 } from '@/components/ui/sidebar';
 
+// Lazy load ProductViewer (model-viewer based)
 const ProductViewer = dynamic(
   () => import('@/components/ProductViewer'),
   { 
@@ -38,54 +37,100 @@ const ProductViewer = dynamic(
   }
 );
 
+// Lazy load MobileDrawer
 const MobileDrawer = dynamic(
   () => import('@/components/MobileDrawer').then(mod => ({ default: mod.MobileDrawer })),
   { ssr: false }
 );
 
-// Lazy load DecalEditorCanvas to avoid loading R3F unless needed
+// Lazy load DecalEditorCanvas (R3F based) - separate WebGL context
 const DecalEditorCanvas = dynamic(
   () => import('@/components/DecalEditor').then(mod => ({ default: mod.DecalEditorCanvas })),
-  { ssr: false }
+  { 
+    ssr: false,
+    loading: () => (
+      <div className="fixed inset-0 z-100 bg-surface-950 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 border-2 border-accent-500 border-t-transparent rounded-full animate-spin" />
+          <span className="text-sm text-surface-400">Loading Decal Editor...</span>
+        </div>
+      </div>
+    )
+  }
 );
 
 /**
  * Main 3D product configurator page.
  */
 export default function ConfiguratorPage() {
+  // Model state
   const [modelUrl, setModelUrl] = useState<string | null>(null);
   const [modelName, setModelName] = useState<string | null>(null);
+  
+  // Texture state
   const [textures, setTextures] = useState<Record<string, string>>({});
   const [availableMaterials, setAvailableMaterials] = useState<string[]>([]);
-  const [isAutoRotating, setIsAutoRotating] = useState(false);
   const [textureApplied, setTextureApplied] = useState(false);
-  const [isFocusMode, setIsFocusMode] = useState(false);
   const [activeTextureSlot, setActiveTextureSlot] = useState<string | null>(null);
   
-  const viewerRef = useRef<HTMLDivElement>(null);
+  // Viewer state
+  const [isAutoRotating, setIsAutoRotating] = useState(false);
+  const [isFocusMode, setIsFocusMode] = useState(false);
   const [canAR, setCanAR] = useState(false);
   const [arStatus, setArStatus] = useState<string>('not-presenting');
 
-  // Texture transform hook for adjusting UV offset/scale/rotation
+  // Delayed mount for DecalEditor to avoid WebGL context conflict
+  // model-viewer and R3F both use Three.js with separate WebGL contexts
+  // We need to wait for each context to be released before mounting the other
+  const [isDecalEditorReady, setIsDecalEditorReady] = useState(false);
+  const [isProductViewerReady, setIsProductViewerReady] = useState(true);
+
+  const viewerRef = useRef<HTMLDivElement>(null);
+
+  // Texture transform hook (UV offset/scale/rotation)
   const {
     getTransform,
     updateProperty: updateTransformProperty,
     resetTransform,
   } = useTextureTransform();
 
-  // Decal transform hook for 3D positioning
+  // Decal transform hook (3D position/rotation/scale)
   const decal = useDecalTransform();
 
-
+  // Check AR capability on mount
   useEffect(() => {
     const checkAR = () => {
-      const isARCapable = 'xr' in navigator || 
+      const isARCapable = 'xr' in navigator ||
         /Android|iPhone|iPad/i.test(navigator.userAgent);
       setCanAR(isARCapable);
     };
     checkAR();
   }, []);
 
+  // Delayed mount for DecalEditor/ProductViewer - wait for WebGL context to be released
+  // This prevents "Context Lost" errors from multiple WebGL contexts
+  // The delay must be long enough for the browser to fully garbage collect the old context
+  useEffect(() => {
+    if (decal.isEditing) {
+      // Entering DecalEditor: hide ProductViewer immediately, wait to show DecalEditor
+      // forceReleaseContext() was called in handleOpenDecalEditor before this
+      setIsProductViewerReady(false);
+      const timer = setTimeout(() => {
+        setIsDecalEditorReady(true);
+      }, 1500); // Long delay: wait for model-viewer context to be fully garbage collected
+      return () => clearTimeout(timer);
+    } else {
+      // Exiting DecalEditor: hide DecalEditor immediately, wait to show ProductViewer
+      // DecalEditorCanvas will release R3F context in its unmount effect
+      setIsDecalEditorReady(false);
+      const timer = setTimeout(() => {
+        setIsProductViewerReady(true);
+      }, 1500); // Long delay: wait for R3F context to be fully garbage collected
+      return () => clearTimeout(timer);
+    }
+  }, [decal.isEditing]);
+
+  // Handlers
   const handleModelSelect = useCallback((url: string, fileName: string) => {
     if (modelUrl) URL.revokeObjectURL(modelUrl);
     setModelUrl(url);
@@ -93,11 +138,12 @@ export default function ConfiguratorPage() {
     setTextures({});
     setTextureApplied(false);
     setAvailableMaterials([]);
+    setActiveTextureSlot(null);
   }, [modelUrl]);
 
   const handleMaterialsLoaded = useCallback((materials: string[]) => {
     setAvailableMaterials(materials);
-    console.log('Materials loaded:', materials);
+    console.log('[Configurator] Materials loaded:', materials);
   }, []);
 
   const handleTextureSelect = useCallback((url: string, file: File, slotName: string) => {
@@ -105,7 +151,9 @@ export default function ConfiguratorPage() {
       ...prev,
       [slotName]: url
     }));
+    setActiveTextureSlot(slotName);
     
+    // Apply texture to model-viewer
     const viewer = viewerRef.current?.querySelector('model-viewer') as any;
     if (viewer?.applyCustomTexture) {
       viewer.applyCustomTexture(url, slotName);
@@ -160,6 +208,25 @@ export default function ConfiguratorPage() {
     setIsFocusMode(prev => !prev);
   }, []);
 
+  // Handle opening Decal Editor
+  // Let model-viewer unmount naturally - don't force release the WebGL context
+  // as this can cause issues with R3F's context creation
+  const handleOpenDecalEditor = useCallback(() => {
+    if (activeTextureSlot && textures[activeTextureSlot]) {
+      // Start editing - the delay in useEffect will wait for model-viewer to unmount
+      // and for the browser to release its WebGL resources naturally
+      decal.startEditing(textures[activeTextureSlot], activeTextureSlot);
+    }
+  }, [activeTextureSlot, textures, decal]);
+
+  // Handle applying decal transform
+  const handleApplyDecal = useCallback(() => {
+    decal.applyEditing();
+    // Here you could also apply the decal transform to the model-viewer
+    // or store it for later use
+    console.log('[Configurator] Decal applied with transform:', decal.transform);
+  }, [decal]);
+
   return (
     <SidebarProvider defaultOpen={true} className="dark">
       <ConfiguratorContent 
@@ -189,306 +256,397 @@ export default function ConfiguratorPage() {
         getTransform={getTransform}
         updateTransformProperty={updateTransformProperty}
         resetTransform={resetTransform}
-        // Decal editor
+        // Decal editor props
         decal={decal}
+        handleOpenDecalEditor={handleOpenDecalEditor}
+        handleApplyDecal={handleApplyDecal}
+        isDecalEditorReady={isDecalEditorReady}
+        isProductViewerReady={isProductViewerReady}
       />
     </SidebarProvider>
   );
 }
 
+// Props interface for ConfiguratorContent
+interface ConfiguratorContentProps {
+  modelUrl: string | null;
+  modelName: string | null;
+  textures: Record<string, string>;
+  availableMaterials: string[];
+  textureApplied: boolean;
+  handleModelSelect: (url: string, fileName: string) => void;
+  handleMaterialsLoaded: (materials: string[]) => void;
+  handleTextureSelect: (url: string, file: File, slotName: string) => void;
+  handleTextureApplied: () => void;
+  handleARStatusChange: (status: string) => void;
+  arStatus: string;
+  isFocusMode: boolean;
+  handleToggleFocus: () => void;
+  isAutoRotating: boolean;
+  handleScreenshot: () => void;
+  handleReset: () => void;
+  handleToggleAutoRotate: () => void;
+  handleActivateAR: () => void;
+  canAR: boolean;
+  viewerRef: React.RefObject<HTMLDivElement | null>;
+  activeTextureSlot: string | null;
+  setActiveTextureSlot: (slot: string | null) => void;
+  getTransform: (materialName: string) => TextureTransform;
+  updateTransformProperty: (materialName: string, property: TextureTransformProperty, value: number) => void;
+  resetTransform: (materialName: string) => void;
+  decal: ReturnType<typeof useDecalTransform>;
+  handleOpenDecalEditor: () => void;
+  handleApplyDecal: () => void;
+  isDecalEditorReady: boolean;
+  isProductViewerReady: boolean;
+}
+
 function ConfiguratorContent({ 
-  modelUrl, modelName, textures, availableMaterials, textureApplied, 
-  handleModelSelect, handleMaterialsLoaded, handleTextureSelect, handleTextureApplied,
-  handleARStatusChange, arStatus, isFocusMode, handleToggleFocus,
-  isAutoRotating, handleScreenshot, handleReset,
-  handleToggleAutoRotate, handleActivateAR, canAR, viewerRef,
-  // Texture transform props
-  activeTextureSlot, setActiveTextureSlot, getTransform, updateTransformProperty, resetTransform,
-  // Decal editor
-  decal
-}: any) {
+  modelUrl, 
+  modelName, 
+  textures, 
+  availableMaterials, 
+  textureApplied, 
+  handleModelSelect, 
+  handleMaterialsLoaded, 
+  handleTextureSelect, 
+  handleTextureApplied,
+  handleARStatusChange, 
+  arStatus, 
+  isFocusMode, 
+  handleToggleFocus, 
+  isAutoRotating, 
+  handleScreenshot, 
+  handleReset, 
+  handleToggleAutoRotate, 
+  handleActivateAR, 
+  canAR, 
+  viewerRef, 
+  activeTextureSlot, 
+  setActiveTextureSlot, 
+  getTransform, 
+  updateTransformProperty, 
+  resetTransform, 
+  decal,
+  handleOpenDecalEditor,
+  handleApplyDecal,
+  isDecalEditorReady,
+  isProductViewerReady,
+}: ConfiguratorContentProps) {
   const { state } = useSidebar();
   const isCollapsed = state === "collapsed";
-
-  // Stable callback for TextureUploader to prevent re-renders
-  const handleTextureSelectWrapper = useCallback((url: string, file: File, slotName: string) => {
-    handleTextureSelect(url, file, slotName);
-    setActiveTextureSlot(slotName);
-  }, [handleTextureSelect, setActiveTextureSlot]);
-
-  // Stable callback for TextureTransformPanel to prevent re-renders
-  const handleTextureTransformChange = useCallback((property: keyof TextureTransform, value: number) => {
-    if (!activeTextureSlot) return;
-
-    updateTransformProperty(activeTextureSlot, property, value);
-    // Apply transform to model-viewer
-    const viewer = viewerRef.current?.querySelector('model-viewer') as any;
-    if (viewer?.applyTextureTransform) {
-      const currentTransform = getTransform(activeTextureSlot);
-      viewer.applyTextureTransform(activeTextureSlot, {
-        ...currentTransform,
-        [property]: value
-      });
-    }
-  }, [activeTextureSlot, updateTransformProperty, getTransform, viewerRef]);
 
   return (
     <div className="flex min-h-svh w-full bg-surface-950 overflow-hidden">
         
-        {/* Animated Sidebar - Desktop only */}
-        <Sidebar 
-          variant="floating" 
-          collapsible="offcanvas"
-          className={clsx(
-            "bg-surface-950/80 backdrop-blur-3xl transition-all duration-300 p-4 pr-0",
-            isFocusMode && "opacity-0 pointer-events-none -translate-x-full"
-          )}
-        >
-          <SidebarHeader className="p-6 border-b border-surface-800 shrink-0">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-linear-to-br from-accent-400 to-accent-600 flex items-center justify-center shadow-lg shadow-accent-500/20 shrink-0">
-                <svg className="w-5 h-5 text-surface-950" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                </svg>
-              </div>
-              <div className="group-data-[collapsible=icon]:hidden overflow-hidden">
-                <h1 className="text-xl font-bold text-surface-500 tracking-tight leading-none mb-1 uppercase">
-                  3D Configurator
-                </h1>
-                <p className="text-[10px] text-accent-500 font-black uppercase tracking-[0.2em]">
-                  Custom Texture Tool
-                </p>
-              </div>
+      {/* Sidebar - Desktop only */}
+      <Sidebar 
+        variant="floating" 
+        collapsible="offcanvas"
+        className={clsx(
+          "bg-surface-950/80 backdrop-blur-3xl transition-all duration-300 p-4 pr-0",
+          isFocusMode && "opacity-0 pointer-events-none -translate-x-full"
+        )}
+      >
+        <SidebarHeader className="p-6 border-b border-surface-800 shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-linear-to-br from-accent-400 to-accent-600 flex items-center justify-center shadow-lg shadow-accent-500/20 shrink-0">
+              <svg className="w-5 h-5 text-surface-950" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+              </svg>
             </div>
-          </SidebarHeader>
-
-          <SidebarContent className="p-8 custom-scrollbar overflow-y-auto overflow-x-hidden space-y-8">
-            <SidebarGroup className="p-0">
-              <SidebarGroupContent className="px-2">
-                <ModelUploader 
-                  onModelSelect={handleModelSelect}
-                  currentModel={modelUrl}
-                  modelName={modelName}
-                />
-              </SidebarGroupContent>
-            </SidebarGroup>
-
-            <div className="h-px w-full shrink-0 bg-linear-to-r from-transparent via-surface-700 to-transparent" />
-
-            <SidebarGroup className="p-0">
-              <SidebarGroupContent className="px-2">
-                <TextureUploader 
-                  onTextureSelect={handleTextureSelectWrapper}
-                  disabled={!modelUrl}
-                  currentTextures={textures}
-                  availableMaterials={availableMaterials}
-                />
-                {textureApplied && (
-                  <div className="flex items-center gap-2 mt-3 p-2.5 rounded-lg bg-success/10 border border-success/20 animate-in fade-in slide-in-from-top-1">
-                    <div className="w-4 h-4 rounded-full bg-success/20 flex items-center justify-center shrink-0">
-                      <svg className="w-2.5 h-2.5 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                      </svg>
-                    </div>
-                    <span className="text-[9px] font-black text-success uppercase tracking-widest">Texture Applied</span>
-                  </div>
-                )}
-                
-                {/* Texture Transform Panel - show when a texture is applied */}
-                {activeTextureSlot && textures[activeTextureSlot] && (
-                  <div className="mt-4">
-                    <TextureTransformPanel
-                      materialName={activeTextureSlot}
-                      transform={getTransform(activeTextureSlot)}
-                      onTransformChange={handleTextureTransformChange}
-                      onReset={() => resetTransform(activeTextureSlot)}
-                      disabled={!modelUrl}
-                    />
-                    
-                    {/* Edit Position Button */}
-                    <button
-                      onClick={() => decal.startEditing(textures[activeTextureSlot], activeTextureSlot)}
-                      className="w-full mt-3 flex items-center justify-center gap-2 px-4 py-3 rounded-xl
-                        bg-accent-500/10 border border-accent-500/30
-                        hover:bg-accent-500/20 hover:border-accent-500/50
-                        transition-all duration-200
-                        text-xs font-bold text-accent-400 uppercase tracking-wider"
-                    >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
-                      </svg>
-                      Edit Position
-                    </button>
-                  </div>
-                )}
-              </SidebarGroupContent>
-            </SidebarGroup>
-
-            <div className="h-px w-full shrink-0 bg-linear-to-r from-transparent via-surface-700 to-transparent" />
-            <SidebarGroup className="p-0">
-              <SidebarGroupContent className="px-2">
-                <ColorPicker 
-                  viewerRef={viewerRef}
-                  disabled={!modelUrl}
-                />
-              </SidebarGroupContent>
-            </SidebarGroup>
-          </SidebarContent>
-
-          <SidebarFooter className="p-8 border-t border-surface-800 shrink-0">
-            <div className="mb-8">
-              <div className="flex items-center gap-2 mb-4 px-2">
-                <div className="w-1 h-1 rounded-full bg-accent-500/50" />
-                <h3 className="text-[10px] font-bold text-surface-400 uppercase tracking-[0.2em]">
-                  Control Guide
-                </h3>
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                <div className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-surface-950/50 border border-surface-800 group-data-[collapsible=icon]:hidden">
-                  <div className="text-xl">🖱️</div>
-                  <span className="text-[9px] font-bold text-surface-400 uppercase">Rotate</span>
-                </div>
-                <div className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-surface-950/50 border border-surface-800 group-data-[collapsible=icon]:hidden">
-                  <div className="text-xl">🔘</div>
-                  <span className="text-[9px] font-bold text-surface-400 uppercase">Zoom</span>
-                </div>
-                <div className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-surface-950/50 border border-surface-800 group-data-[collapsible=icon]:hidden">
-                  <div className="text-xl">🖐️</div>
-                  <span className="text-[9px] font-bold text-surface-400 uppercase">Pan</span>
-                </div>
-              </div>
+            <div className="group-data-[collapsible=icon]:hidden overflow-hidden">
+              <h1 className="text-xl font-bold text-surface-500 tracking-tight leading-none mb-1 uppercase">
+                3D Configurator
+              </h1>
+              <p className="text-[10px] text-accent-500 font-black uppercase tracking-[0.2em]">
+                Custom Texture Tool
+              </p>
             </div>
-            <div className="text-[9px] text-surface-600 text-center uppercase tracking-widest font-bold group-data-[collapsible=icon]:hidden opacity-70">
-              Press Ctrl+B to toggle sidebar
-            </div>
-          </SidebarFooter>
-        </Sidebar>
+          </div>
+        </SidebarHeader>
 
-        {/* Main Layout Area */}
-        <SidebarInset className="relative flex-1 overflow-hidden bg-surface-950">
-          
-          {/* Controls Overlay */}
-          {!isFocusMode && (
-            <div className="absolute top-6 left-6 z-50 hidden lg:block">
-              <SidebarTrigger className="w-11 h-11 rounded-xl glass hover:glass-accent text-surface-300 hover:text-white transition-all duration-300 shadow-2xl flex items-center justify-center border-surface-700/50" />
-            </div>
-          )}
-
-          {/* Fixed & Centered Canvas Container */}
-          <div className={clsx(
-            "fixed inset-0 flex items-center justify-center z-0 transition-[padding] duration-500 pointer-events-none",
-            !isFocusMode && !isCollapsed ? "lg:pl-(--sidebar-width)" : "lg:pl-0"
-          )}>
-            
-            {/* Background Grid & Gradient */}
-            <div className="absolute inset-0 z-[-1] pointer-events-none">
-              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,var(--tw-gradient-stops))] from-surface-900 via-surface-950 to-surface-950" />
-              <div 
-                className="absolute inset-0 opacity-[0.04]"
-                style={{
-                  backgroundImage: `
-                    linear-gradient(to right, var(--color-surface-400) 1px, transparent 1px),
-                    linear-gradient(to bottom, var(--color-surface-400) 1px, transparent 1px)
-                  `,
-                  backgroundSize: '40px 40px',
-                }}
+        <SidebarContent className="p-8 custom-scrollbar overflow-y-auto overflow-x-hidden space-y-8">
+          {/* Model Upload Section */}
+          <SidebarGroup className="p-0">
+            <SidebarGroupContent className="px-2">
+              <ModelUploader 
+                onModelSelect={handleModelSelect}
+                currentModel={modelUrl}
+                modelName={modelName}
               />
-            </div>
+            </SidebarGroupContent>
+          </SidebarGroup>
 
-            {/* Centered Viewer Area */}
-            <div 
-              ref={viewerRef} 
-              className="relative size-full flex items-center justify-center pointer-events-auto transition-all duration-500 ease-in-out"
-            >
-              {modelUrl ? (
-                <>
-                  {/* Unmount model-viewer when Decal Editor is open to prevent WebGL conflicts */}
-                  {!decal.isEditing && (
-                    <ProductViewer
-                      modelSrc={modelUrl as string}
-                      onTextureApplied={handleTextureApplied}
-                      onMaterialsLoaded={handleMaterialsLoaded}
-                      onARStatusChange={handleARStatusChange}
-                    />
-                  )}
-                </>
-              ) : (
-                <div className="flex flex-col items-center justify-center text-center p-12 max-w-md mx-auto animate-in fade-in zoom-in-95 duration-700">
-                  <div className="w-32 h-32 rounded-[2.5rem] bg-surface-900/50 backdrop-blur-3xl border border-surface-700/80 flex items-center justify-center mb-10 shadow-[0_0_50px_-12px_rgba(0,0,0,0.5)] lg:group-hover:scale-105 transition-transform">
-                    <svg className="w-16 h-16 text-surface-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={0.75} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+          <div className="h-px w-full shrink-0 bg-linear-to-r from-transparent via-surface-700 to-transparent" />
+
+          {/* Texture Section */}
+          <SidebarGroup className="p-0">
+            <SidebarGroupContent className="px-2">
+              <TextureUploader 
+                onTextureSelect={(url, file, slotName) => {
+                  handleTextureSelect(url, file, slotName);
+                  setActiveTextureSlot(slotName);
+                }}
+                disabled={!modelUrl}
+                currentTextures={textures}
+                availableMaterials={availableMaterials}
+              />
+              
+              {/* Texture Applied Indicator */}
+              {textureApplied && (
+                <div className="flex items-center gap-2 mt-3 p-2.5 rounded-lg bg-success/10 border border-success/20 animate-in fade-in slide-in-from-top-1">
+                  <div className="w-4 h-4 rounded-full bg-success/20 flex items-center justify-center shrink-0">
+                    <svg className="w-2.5 h-2.5 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                     </svg>
                   </div>
-                  <h2 className="text-3xl font-black text-surface-100 mb-4 tracking-tight uppercase px-4">
-                    No model loaded
-                  </h2>
-                  <p className="text-surface-500 text-sm leading-loose px-8">
-                    Upload a 3D model in GLB format to start customizing
-                  </p>
+                  <span className="text-[9px] font-black text-success uppercase tracking-widest">Texture Applied</span>
                 </div>
               )}
-            </div>
-
-            {/* Floating AR Status Info */}
-            {modelUrl && !isFocusMode && (
-              <div className="absolute top-6 right-6 z-40 animate-in fade-in slide-in-from-right-4 duration-500">
-                <div className="flex items-center gap-3.5 px-5 py-3 rounded-2xl bg-surface-900/80 backdrop-blur-xl border border-surface-700/50 shadow-2xl">
-                  <div className={clsx(
-                    'w-2.5 h-2.5 rounded-full ring-4 ring-offset-0 transition-all duration-500',
-                    arStatus === 'not-presenting' && 'bg-success ring-success/20 shadow-lg shadow-emerald-500/20',
-                    arStatus === 'session-started' && 'bg-warning ring-warning/20 animate-pulse',
-                    arStatus === 'object-placed' && 'bg-accent-500 ring-accent-500/20',
-                    arStatus === 'failed' && 'bg-error ring-error/20'
-                  )} />
-                  <span className="text-[10px] text-surface-100 font-bold uppercase tracking-[0.2em] whitespace-nowrap">
-                    {arStatus === 'not-presenting' && 'Use Mobile for AR'}
-                    {arStatus === 'session-started' && 'Initializing AR...'}
-                    {arStatus === 'object-placed' && 'Surface Tracked'}
-                    {arStatus === 'failed' && 'AR System Offline'}
-                  </span>
+              
+              {/* Texture Transform Panel - UV controls */}
+              {activeTextureSlot && textures[activeTextureSlot] && (
+                <div className="mt-4 space-y-3">
+                  <TextureTransformPanel
+                    materialName={activeTextureSlot}
+                    transform={getTransform(activeTextureSlot)}
+                    onTransformChange={(property, value) => {
+                      updateTransformProperty(activeTextureSlot, property, value);
+                      // Apply transform to model-viewer
+                      const viewer = viewerRef.current?.querySelector('model-viewer') as any;
+                      if (viewer?.applyTextureTransform) {
+                        const currentTransform = getTransform(activeTextureSlot);
+                        viewer.applyTextureTransform(activeTextureSlot, {
+                          ...currentTransform,
+                          [property]: value
+                        });
+                      }
+                    }}
+                    onReset={() => resetTransform(activeTextureSlot)}
+                    disabled={!modelUrl}
+                  />
+                  
+                  {/* Edit Position Button - Opens Decal Editor */}
+                  <button
+                    onClick={handleOpenDecalEditor}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl
+                      bg-accent-500/10 border border-accent-500/30
+                      hover:bg-accent-500/20 hover:border-accent-500/50
+                      transition-all duration-200
+                      text-xs font-bold text-accent-400 uppercase tracking-wider"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                    </svg>
+                    Edit 3D Position
+                  </button>
                 </div>
-              </div>
-            )}
-            
-              <ViewerControls
-                onScreenshot={handleScreenshot}
-                onReset={handleReset}
-                onToggleAutoRotate={handleToggleAutoRotate}
-                onActivateAR={handleActivateAR}
-                onToggleFocus={handleToggleFocus}
-                isAutoRotating={isAutoRotating}
-                isFocusMode={isFocusMode}
-                hasModel={!!modelUrl}
-                canAR={canAR}
-              />
-          </div>
-        </SidebarInset>
+              )}
+            </SidebarGroupContent>
+          </SidebarGroup>
 
-        {/* Mobile Customization Drawer */}
+          <div className="h-px w-full shrink-0 bg-linear-to-r from-transparent via-surface-700 to-transparent" />
+          
+          {/* Color Section */}
+          <SidebarGroup className="p-0">
+            <SidebarGroupContent className="px-2">
+              <ColorPicker 
+                viewerRef={viewerRef}
+                disabled={!modelUrl}
+              />
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </SidebarContent>
+
+        <SidebarFooter className="p-8 border-t border-surface-800 shrink-0">
+          <div className="mb-8">
+            <div className="flex items-center gap-2 mb-4 px-2">
+              <div className="w-1 h-1 rounded-full bg-accent-500/50" />
+              <h3 className="text-[10px] font-bold text-surface-400 uppercase tracking-[0.2em]">
+                Control Guide
+              </h3>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <div className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-surface-950/50 border border-surface-800 group-data-[collapsible=icon]:hidden">
+                <div className="text-xl">🖱️</div>
+                <span className="text-[9px] font-bold text-surface-400 uppercase">Rotate</span>
+              </div>
+              <div className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-surface-950/50 border border-surface-800 group-data-[collapsible=icon]:hidden">
+                <div className="text-xl">🔘</div>
+                <span className="text-[9px] font-bold text-surface-400 uppercase">Zoom</span>
+              </div>
+              <div className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-surface-950/50 border border-surface-800 group-data-[collapsible=icon]:hidden">
+                <div className="text-xl">🖐️</div>
+                <span className="text-[9px] font-bold text-surface-400 uppercase">Pan</span>
+              </div>
+            </div>
+          </div>
+          <div className="text-[9px] text-surface-600 text-center uppercase tracking-widest font-bold group-data-[collapsible=icon]:hidden opacity-70">
+            Press Ctrl+B to toggle sidebar
+          </div>
+        </SidebarFooter>
+      </Sidebar>
+
+      {/* Main Layout Area */}
+      <SidebarInset className="relative flex-1 overflow-hidden bg-surface-950">
+        
+        {/* Sidebar Toggle Button */}
         {!isFocusMode && (
-          <MobileDrawer
-            modelUrl={modelUrl}
-            modelName={modelName}
-            textures={textures}
-            textureApplied={textureApplied}
-            onModelSelect={handleModelSelect}
-            onTextureSelect={handleTextureSelect}
-            viewerRef={viewerRef}
-          />
+          <div className="absolute top-6 left-6 z-50 hidden lg:block">
+            <SidebarTrigger className="w-11 h-11 rounded-xl glass hover:glass-accent text-surface-300 hover:text-white transition-all duration-300 shadow-2xl flex items-center justify-center border-surface-700/50" />
+          </div>
         )}
 
-        {/* Decal Editor Overlay */}
-        {decal.isEditing && modelUrl && decal.textureUrl && (
+        {/* Canvas Container */}
+        <div className={clsx(
+          "fixed inset-0 flex items-center justify-center z-0 transition-[padding] duration-500 pointer-events-none",
+          !isFocusMode && !isCollapsed ? "lg:pl-(--sidebar-width)" : "lg:pl-0"
+        )}>
+          
+          {/* Background */}
+          <div className="absolute inset-0 z-[-1] pointer-events-none">
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,var(--tw-gradient-stops))] from-surface-900 via-surface-950 to-surface-950" />
+            <div 
+              className="absolute inset-0 opacity-[0.04]"
+              style={{
+                backgroundImage: `
+                  linear-gradient(to right, var(--color-surface-400) 1px, transparent 1px),
+                  linear-gradient(to bottom, var(--color-surface-400) 1px, transparent 1px)
+                `,
+                backgroundSize: '40px 40px',
+              }}
+            />
+          </div>
+
+          {/* Viewer Area */}
+          <div 
+            ref={viewerRef} 
+            className="relative size-full flex items-center justify-center pointer-events-auto transition-all duration-500 ease-in-out"
+          >
+            {modelUrl ? (
+              <>
+                {/*
+                  IMPORTANT: Unmount model-viewer when Decal Editor is open
+                  This prevents WebGL context conflicts between model-viewer and R3F
+                  isProductViewerReady adds delay to wait for R3F context release
+                */}
+                {!decal.isEditing && isProductViewerReady && (
+                  <ProductViewer
+                    modelSrc={modelUrl}
+                    onTextureApplied={handleTextureApplied}
+                    onMaterialsLoaded={handleMaterialsLoaded}
+                    onARStatusChange={handleARStatusChange}
+                  />
+                )}
+                {/* Show loading while waiting for viewer */}
+                {!decal.isEditing && !isProductViewerReady && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-surface-950">
+                    <div className="flex flex-col items-center gap-4">
+                      <div className="w-10 h-10 border-2 border-accent-500 border-t-transparent rounded-full animate-spin" />
+                      <span className="text-sm text-surface-400">Loading viewer...</span>
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="flex flex-col items-center justify-center text-center p-12 max-w-md mx-auto animate-in fade-in zoom-in-95 duration-700">
+                <div className="w-32 h-32 rounded-[2.5rem] bg-surface-900/50 backdrop-blur-3xl border border-surface-700/80 flex items-center justify-center mb-10 shadow-[0_0_50px_-12px_rgba(0,0,0,0.5)] lg:group-hover:scale-105 transition-transform">
+                  <svg className="w-16 h-16 text-surface-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={0.75} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                  </svg>
+                </div>
+                <h2 className="text-3xl font-black text-surface-100 mb-4 tracking-tight uppercase px-4">
+                  No model loaded
+                </h2>
+                <p className="text-surface-500 text-sm leading-loose px-8">
+                  Upload a 3D model in GLB format to start customizing
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* AR Status Indicator */}
+          {modelUrl && !isFocusMode && !decal.isEditing && (
+            <div className="absolute top-6 right-6 z-40 animate-in fade-in slide-in-from-right-4 duration-500">
+              <div className="flex items-center gap-3.5 px-5 py-3 rounded-2xl bg-surface-900/80 backdrop-blur-xl border border-surface-700/50 shadow-2xl">
+                <div className={clsx(
+                  'w-2.5 h-2.5 rounded-full ring-4 ring-offset-0 transition-all duration-500',
+                  arStatus === 'not-presenting' && 'bg-success ring-success/20 shadow-lg shadow-emerald-500/20',
+                  arStatus === 'session-started' && 'bg-warning ring-warning/20 animate-pulse',
+                  arStatus === 'object-placed' && 'bg-accent-500 ring-accent-500/20',
+                  arStatus === 'failed' && 'bg-error ring-error/20'
+                )} />
+                <span className="text-[10px] text-surface-100 font-bold uppercase tracking-[0.2em] whitespace-nowrap">
+                  {arStatus === 'not-presenting' && 'Use Mobile for AR'}
+                  {arStatus === 'session-started' && 'Initializing AR...'}
+                  {arStatus === 'object-placed' && 'Surface Tracked'}
+                  {arStatus === 'failed' && 'AR System Offline'}
+                </span>
+              </div>
+            </div>
+          )}
+          
+          {/* Viewer Controls */}
+          {!decal.isEditing && (
+            <ViewerControls
+              onScreenshot={handleScreenshot}
+              onReset={handleReset}
+              onToggleAutoRotate={handleToggleAutoRotate}
+              onActivateAR={handleActivateAR}
+              onToggleFocus={handleToggleFocus}
+              isAutoRotating={isAutoRotating}
+              isFocusMode={isFocusMode}
+              hasModel={!!modelUrl}
+              canAR={canAR}
+            />
+          )}
+        </div>
+      </SidebarInset>
+
+      {/* Mobile Drawer */}
+      {!isFocusMode && !decal.isEditing && (
+        <MobileDrawer
+          modelUrl={modelUrl}
+          modelName={modelName}
+          textures={textures}
+          textureApplied={textureApplied}
+          onModelSelect={handleModelSelect}
+          onTextureSelect={handleTextureSelect}
+          viewerRef={viewerRef}
+        />
+      )}
+
+      {/*
+        DECAL EDITOR OVERLAY
+        - Opens as full-screen overlay
+        - Uses R3F (separate WebGL context)
+        - model-viewer is unmounted while this is open
+        - isDecalEditorReady delays mounting to avoid WebGL context conflict
+        - Validate URLs to prevent "Cannot read properties of null (reading 'trim')" error
+      */}
+      {decal.isEditing &&
+       modelUrl && typeof modelUrl === 'string' && modelUrl.trim().length > 0 &&
+       decal.textureUrl && typeof decal.textureUrl === 'string' && decal.textureUrl.trim().length > 0 && (
+        isDecalEditorReady ? (
           <DecalEditorCanvas
             modelUrl={modelUrl}
             textureUrl={decal.textureUrl}
             initialTransform={decal.transform}
             onTransformChange={decal.setTransform}
-            onApply={decal.applyEditing}
+            onApply={handleApplyDecal}
             onCancel={decal.cancelEditing}
-            activeSlotName={activeTextureSlot}
           />
-        )}
-      </div>
+        ) : (
+          // Loading state while waiting for WebGL context to be released
+          <div className="fixed inset-0 z-100 bg-surface-950 flex items-center justify-center">
+            <div className="flex flex-col items-center gap-4">
+              <div className="w-10 h-10 border-2 border-accent-500 border-t-transparent rounded-full animate-spin" />
+              <span className="text-sm text-surface-400">Preparing editor...</span>
+            </div>
+          </div>
+        )
+      )}
+    </div>
   );
 }

@@ -1,155 +1,103 @@
 'use client';
 
-import { Suspense, useRef, useState, useEffect, useCallback } from 'react';
-import { Canvas, useThree, useLoader } from '@react-three/fiber';
-import { OrbitControls, useGLTF, Environment, Center, useTexture } from '@react-three/drei';
+import { Suspense, useRef, useState, useEffect, useCallback, useMemo } from 'react';
+import { Canvas } from '@react-three/fiber';
+import { OrbitControls, useGLTF, Environment, Center } from '@react-three/drei';
 import * as THREE from 'three';
 import type { DecalTransform, DecalEditorProps } from '@/types/decal';
 import { EditableDecal } from './EditableDecal';
 import DecalTransformPanel from './DecalTransformPanel';
-import { materialTargetMap } from '@/lib/material-utils';
 
-// Define props for the internal Model component
+// No module-level variables - use refs to avoid React Strict Mode issues
+
 interface ModelProps {
   url: string;
   textureUrl: string;
   transform: DecalTransform;
   onTransformChange: (transform: DecalTransform) => void;
-  activeSlotName?: string;
+  isSelected: boolean;
+  onSelect: () => void;
 }
 
 /**
- * Model component that loads GLB and provides mesh reference for Decal.
+ * Inner Model component that loads GLB and provides mesh reference for Decal.
+ * This component assumes URL is already validated.
  */
-function Model({
+function ModelInner({
   url,
   textureUrl,
   transform,
   onTransformChange,
-  activeSlotName,
+  isSelected,
+  onSelect,
 }: ModelProps) {
   const { scene } = useGLTF(url);
-  const texture = useTexture(textureUrl); // Load the texture to apply to the mesh
   const [targetMesh, setTargetMesh] = useState<THREE.Mesh | null>(null);
-  const [isSelected, setIsSelected] = useState(true);
   const meshRef = useRef<THREE.Mesh | null>(null);
-  const { gl } = useThree();
 
-  // Configure texture encoding to match R3F defaults
-  useEffect(() => {
-    if (texture) {
-      texture.colorSpace = THREE.SRGBColorSpace;
-      texture.flipY = false; // model-viewer often flips Y, but standard Three.js might not. Check if needed.
-      // Usually GLTF expects flipY=false.
-    }
-  }, [texture]);
+  // Memoize scene clone to avoid recreating on every render
+  const clonedScene = useMemo(() => scene.clone(true), [scene]);
 
-  // Clone scene to avoid modifying cached version
-  const clonedScene = scene.clone();
-
-  // Find correct mesh for decal target based on slot name AND apply texture
+  // Find first mesh for decal target when scene changes
   useEffect(() => {
     let found: THREE.Mesh | null = null;
-
-    const targetNames = activeSlotName ? (materialTargetMap[activeSlotName] || [activeSlotName]) : [];
-
-    // First try to find by material name
     clonedScene.traverse((child) => {
-        if (child instanceof THREE.Mesh && child.material) {
-            const mat = child.material as THREE.MeshStandardMaterial; // Assume standard material
-            // Check if this is the target mesh
-            if (!found && activeSlotName && targetNames.some(name => mat.name.toLowerCase().includes(name.toLowerCase()))) {
-                found = child;
-                meshRef.current = child;
-                console.log('[DecalEditor] Found target mesh:', child.name);
-            }
-        }
+      if (child instanceof THREE.Mesh && !found) {
+        found = child;
+      }
     });
-
-    // Fallback: Find first mesh if not found
-    if (!found) {
-        clonedScene.traverse((child) => {
-        if (child instanceof THREE.Mesh && !found) {
-            found = child;
-            meshRef.current = child;
-        }
-        });
-    }
-
+    meshRef.current = found;
     setTargetMesh(found);
-
-    // Auto-center logic in WORLD space
-    if (found) {
-        const mesh = found as THREE.Mesh;
-        if (mesh.geometry) {
-            // Ensure world matrix is up to date
-            mesh.updateMatrixWorld(true);
-
-            mesh.geometry.computeBoundingBox();
-            const aabb = mesh.geometry.boundingBox;
-
-            if (aabb) {
-                // Convert bounds to world space
-                const worldBox = new THREE.Box3().copy(aabb).applyMatrix4(mesh.matrixWorld);
-                const center = new THREE.Vector3();
-                worldBox.getCenter(center);
-                const size = new THREE.Vector3();
-                worldBox.getSize(size);
-
-                // If this is a fresh session or default transform, snap to center
-                // We compare against default values
-                const isDefault = transform.position[0] === 0 && transform.position[1] === 0 && transform.position[2] === 0.1;
-
-                if (isDefault) {
-                     console.log('[DecalEditor] Auto-centering decal at World Center:', center);
-
-                     // Move slightly along the largest normal or just Z+ relative to bounds?
-                     // Heuristic: Center + slight Z offset based on bounding box depth
-                     // Note: We are using OrbitControls around Center, so 0,0,0 is roughly the center of the scene.
-
-                     onTransformChange({
-                         ...transform,
-                         position: [center.x, center.y, center.z + (size.z * 0.5) + 0.05],
-                         // Adjust scale to fit the mesh nicely (e.g., 60% of width)
-                         scale: Math.min(size.x, size.y) * 0.6,
-                     });
-                }
-            }
-        }
-    }
-  }, [url, activeSlotName, texture]);
-
-  // Click outside to deselect
-  const handlePointerMissed = useCallback(() => {
-    setIsSelected(false);
-  }, []);
-
-  useEffect(() => {
-    gl.domElement.addEventListener('pointerdown', handlePointerMissed);
-    return () => {
-      gl.domElement.removeEventListener('pointerdown', handlePointerMissed);
-    };
-  }, [gl, handlePointerMissed]);
+  }, [clonedScene]);
 
   return (
     <Center>
-      <primitive 
-        object={clonedScene} 
-        onClick={() => setIsSelected(true)}
+      <primitive
+        object={clonedScene}
+        onClick={onSelect}
       />
-      
-      {targetMesh && meshRef.current && (
+
+      {targetMesh && meshRef.current && textureUrl && (
         <EditableDecal
           meshRef={meshRef}
           textureUrl={textureUrl}
           transform={transform}
           onTransformChange={onTransformChange}
           isSelected={isSelected}
-          onSelect={() => setIsSelected(true)}
+          onSelect={onSelect}
         />
       )}
     </Center>
   );
+}
+
+/**
+ * Wrapper component that validates URLs before rendering ModelInner.
+ * This prevents "Cannot read properties of null (reading 'trim')" errors.
+ */
+function Model(props: ModelProps) {
+  const { url, textureUrl } = props;
+
+  // Debug logging
+  useEffect(() => {
+    console.log('[DecalEditor Model] URLs:', {
+      url: url?.substring(0, 50),
+      textureUrl: textureUrl?.substring(0, 50),
+      urlType: typeof url,
+      textureUrlType: typeof textureUrl
+    });
+  }, [url, textureUrl]);
+
+  // Validate URLs - render nothing if invalid
+  const isValidUrl = url && typeof url === 'string' && url.trim().length > 0;
+  const isValidTextureUrl = textureUrl && typeof textureUrl === 'string' && textureUrl.trim().length > 0;
+
+  if (!isValidUrl || !isValidTextureUrl) {
+    console.warn('[DecalEditor Model] Invalid URLs, rendering null', { isValidUrl, isValidTextureUrl });
+    return null;
+  }
+
+  return <ModelInner {...props} />;
 }
 
 /**
@@ -164,9 +112,16 @@ function LoadingFallback() {
   );
 }
 
-// Update DecalEditorProps to include activeSlotName
-interface ExtendedDecalEditorProps extends DecalEditorProps {
-    activeSlotName?: string;
+/**
+ * Debug cube to verify R3F is rendering.
+ */
+function DebugCube() {
+  return (
+    <mesh position={[2, 0, 0]}>
+      <boxGeometry args={[0.5, 0.5, 0.5]} />
+      <meshStandardMaterial color="red" />
+    </mesh>
+  );
 }
 
 /**
@@ -179,8 +134,7 @@ export function DecalEditorCanvas({
   onTransformChange,
   onApply,
   onCancel,
-  activeSlotName,
-}: ExtendedDecalEditorProps) {
+}: DecalEditorProps) {
   const [transform, setTransform] = useState<DecalTransform>(
     initialTransform || {
       position: [0, 0, 0.1],
@@ -189,8 +143,21 @@ export function DecalEditorCanvas({
     }
   );
 
+  // Selection state - lifted from Model component
+  const [isSelected, setIsSelected] = useState(true);
+
+  // Refs for WebGL cleanup (use refs instead of module-level variables for React Strict Mode)
+  const glRendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  const isMountedRef = useRef(true);
+
   // Notify parent of transform changes
   const handleTransformChange = useCallback((newTransform: DecalTransform) => {
+    setTransform(newTransform);
+    onTransformChange(newTransform);
+  }, [onTransformChange]);
+
+  // Handle panel changes (also notify parent)
+  const handlePanelChange = useCallback((newTransform: DecalTransform) => {
     setTransform(newTransform);
     onTransformChange(newTransform);
   }, [onTransformChange]);
@@ -201,10 +168,41 @@ export function DecalEditorCanvas({
       if (e.key === 'Escape') {
         onCancel();
       }
+      // Cmd/Ctrl + Enter to apply
+      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+        onApply();
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onCancel]);
+  }, [onCancel, onApply]);
+
+  // Click outside handler for Canvas
+  const handlePointerMissed = useCallback(() => {
+    setIsSelected(false);
+  }, []);
+
+  // Select handler
+  const handleSelect = useCallback(() => {
+    setIsSelected(true);
+  }, []);
+
+  // Handle Canvas creation - store renderer for cleanup
+  const handleCreated = useCallback(({ gl }: { gl: THREE.WebGLRenderer }) => {
+    glRendererRef.current = gl;
+  }, []);
+
+  // Track mounted state for React Strict Mode
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  // Note: We intentionally do NOT cleanup the WebGL context on unmount
+  // The forceContextLoss() call was causing issues with React Strict Mode
+  // and the browser's WebGL context management. Let the browser handle cleanup.
 
   return (
     <div className="fixed inset-0 z-100 bg-surface-950 flex flex-col">
@@ -218,12 +216,16 @@ export function DecalEditorCanvas({
           </div>
           <div>
             <h2 className="text-sm font-bold text-surface-100 uppercase tracking-wider">Decal Editor</h2>
-            <p className="text-xs text-surface-500">Drag gizmo to position • Escape to cancel</p>
+            <p className="text-xs text-surface-500">Drag gizmo to position • Escape to cancel • ⌘+Enter to apply</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setTransform({ position: [0, 0, 0.1], rotation: [0, 0, 0], scale: 0.3 })}
+            onClick={() => {
+              const resetTransform = { position: [0, 0, 0.1] as [number, number, number], rotation: [0, 0, 0] as [number, number, number], scale: 0.3 };
+              setTransform(resetTransform);
+              onTransformChange(resetTransform);
+            }}
             className="px-4 py-2 text-xs font-bold text-surface-400 hover:text-surface-200 transition-colors uppercase tracking-wider"
           >
             Reset
@@ -248,33 +250,39 @@ export function DecalEditorCanvas({
         <Canvas
           camera={{ position: [0, 1, 3], fov: 50 }}
           gl={{ antialias: true, alpha: true }}
+          onPointerMissed={handlePointerMissed}
+          onCreated={handleCreated}
         >
           <ambientLight intensity={0.5} />
           <directionalLight position={[5, 5, 5]} intensity={1} />
           <Environment preset="studio" />
-          
-          <OrbitControls 
+
+          <OrbitControls
             makeDefault
             enablePan={true}
             minDistance={1}
             maxDistance={10}
           />
-          
+
+          {/* Debug cube to verify R3F renders */}
+          <DebugCube />
+
           <Suspense fallback={<LoadingFallback />}>
             <Model
               url={modelUrl}
               textureUrl={textureUrl}
               transform={transform}
               onTransformChange={handleTransformChange}
-              activeSlotName={activeSlotName}
+              isSelected={isSelected}
+              onSelect={handleSelect}
             />
           </Suspense>
         </Canvas>
 
         {/* Transform Panel Overlay */}
-        <DecalTransformPanel 
+        <DecalTransformPanel
           transform={transform}
-          onChange={setTransform}
+          onChange={handlePanelChange}
         />
       </div>
     </div>

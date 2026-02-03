@@ -3,7 +3,11 @@
     "allow": [
       "WebFetch(domain:ui.shadcn.com)",
       "Bash(npx tsc:*)",
-      "WebSearch"
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "Bash(npm run dev)",
+      "Bash(timeout:*)",
+      "mcp__context7__query-docs"
     ]
   }
 }

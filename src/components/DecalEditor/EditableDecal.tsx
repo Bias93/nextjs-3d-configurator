@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useMemo, useEffect } from 'react';
+import { useRef, useMemo, useEffect, useCallback } from 'react';
 import { useTexture, Decal, PivotControls } from '@react-three/drei';
 import * as THREE from 'three';
 import type { DecalTransform } from '@/types/decal';
@@ -21,9 +21,10 @@ interface EditableDecalProps {
 }
 
 /**
- * Editable decal with PivotControls gizmo for interactive transform.
+ * Inner component that renders the decal with hooks.
+ * Assumes textureUrl is already validated by parent.
  */
-export function EditableDecal({
+function EditableDecalInner({
   meshRef,
   textureUrl,
   transform,
@@ -41,49 +42,64 @@ export function EditableDecal({
     }
   }, [texture]);
 
-  // Convert transform to Three.js objects
-  const position = useMemo(() => 
-    new THREE.Vector3(...transform.position), 
+  // Create matrix for PivotControls initial/current transform
+  // Note: We don't include scale in the matrix - scale is handled separately by Decal
+  const pivotMatrix = useMemo(() => {
+    const m = new THREE.Matrix4();
+    m.compose(
+      new THREE.Vector3(...transform.position),
+      new THREE.Quaternion().setFromEuler(new THREE.Euler(...transform.rotation)),
+      new THREE.Vector3(1, 1, 1) // Uniform scale = 1, actual scale via Decal prop
+    );
+    return m;
+  }, [transform.position, transform.rotation]);
+
+  // Convert transform to Three.js objects for Decal
+  const decalPosition = useMemo(
+    () => new THREE.Vector3(...transform.position),
     [transform.position]
   );
-  
-  const rotation = useMemo(() => 
-    new THREE.Euler(...transform.rotation), 
+
+  const decalRotation = useMemo(
+    () => new THREE.Euler(...transform.rotation),
     [transform.rotation]
   );
 
-  // Handle PivotControls drag
-  const handleDrag = (
-    localMatrix: THREE.Matrix4,
-    _deltaLocalMatrix: THREE.Matrix4,
-    _worldMatrix: THREE.Matrix4,
-    _deltaWorldMatrix: THREE.Matrix4
-  ) => {
-    const pos = new THREE.Vector3();
-    const quat = new THREE.Quaternion();
-    const scl = new THREE.Vector3();
-    
-    localMatrix.decompose(pos, quat, scl);
-    
-    const euler = new THREE.Euler().setFromQuaternion(quat);
-    
-    onTransformChange({
-      position: [pos.x, pos.y, pos.z],
-      rotation: [euler.x, euler.y, euler.z],
-      scale: Math.max(0.05, Math.min(2.0, scl.x * transform.scale)),
-    });
-  };
+  // Handle PivotControls drag - drei v10.7.7 signature:
+  // onDrag(localMatrix, deltaLocalMatrix, worldMatrix, deltaWorldMatrix)
+  const handleDrag = useCallback(
+    (
+      localMatrix: THREE.Matrix4,
+      _deltaLocalMatrix: THREE.Matrix4,
+      _worldMatrix: THREE.Matrix4,
+      _deltaWorldMatrix: THREE.Matrix4
+    ) => {
+      const pos = new THREE.Vector3();
+      const quat = new THREE.Quaternion();
+      const scl = new THREE.Vector3();
 
-  if (!meshRef.current) return null;
+      localMatrix.decompose(pos, quat, scl);
+
+      const euler = new THREE.Euler().setFromQuaternion(quat);
+
+      onTransformChange({
+        position: [pos.x, pos.y, pos.z],
+        rotation: [euler.x, euler.y, euler.z],
+        // Keep scale from state - scale is controlled separately via slider
+        scale: transform.scale,
+      });
+    },
+    [onTransformChange, transform.scale]
+  );
 
   return (
     <>
       {/* PivotControls for interactive transform */}
       <PivotControls
         ref={pivotRef}
-        offset={transform.position}
-        rotation={transform.rotation}
-        scale={0.3}
+        matrix={pivotMatrix}
+        autoTransform={false} // We control transform via state, not auto
+        scale={0.4}
         visible={isSelected}
         depthTest={false}
         lineWidth={2}
@@ -91,22 +107,23 @@ export function EditableDecal({
         hoveredColor="#ffd43b"
         onDrag={handleDrag}
         activeAxes={[true, true, true]}
+        disableScaling={true} // Scale via slider only
       >
-        {/* Helper mesh for visual feedback of position */}
-        <mesh>
-          <sphereGeometry args={[0.05, 16, 16]} />
-          <meshBasicMaterial color="yellow" wireframe depthTest={false} />
-        </mesh>
+        {/* Invisible helper mesh for the gizmo to attach to */}
+        <group>
+          <mesh visible={false}>
+            <boxGeometry args={[0.1, 0.1, 0.1]} />
+            <meshBasicMaterial transparent opacity={0} />
+          </mesh>
+        </group>
       </PivotControls>
 
       {/* The actual Decal rendered on the mesh */}
       <Decal
-        mesh={meshRef as any}
-        position={position}
-        rotation={rotation}
+        mesh={meshRef as React.RefObject<THREE.Mesh>}
+        position={decalPosition}
+        rotation={decalRotation}
         scale={transform.scale}
-        renderOrder={100}
-        debug // Enable debug box to visualize projection
         onClick={(e) => {
           e.stopPropagation();
           onSelect();
@@ -115,16 +132,36 @@ export function EditableDecal({
         <meshStandardMaterial
           map={texture}
           transparent
-          opacity={1.0}
           polygonOffset
           polygonOffsetFactor={-10}
-          depthTest={false}
+          depthTest={true}
           depthWrite={false}
-          side={THREE.DoubleSide}
         />
       </Decal>
     </>
   );
+}
+
+/**
+ * Wrapper component that validates props before rendering.
+ * Prevents "Cannot read properties of null (reading 'trim')" errors from useTexture.
+ */
+export function EditableDecal(props: EditableDecalProps) {
+  const { textureUrl, meshRef } = props;
+
+  // Validate textureUrl
+  const isValidTextureUrl = textureUrl && typeof textureUrl === 'string' && textureUrl.trim().length > 0;
+
+  if (!isValidTextureUrl) {
+    console.warn('[EditableDecal] Invalid texture URL provided');
+    return null;
+  }
+
+  if (!meshRef.current) {
+    return null;
+  }
+
+  return <EditableDecalInner {...props} />;
 }
 
 export default EditableDecal;
